@@ -938,6 +938,8 @@ ${LANGS.flatMap((l) => PAGES.map((p) => `  <url><loc>${SITE.url}/${l.code}/${p.f
   if (SITE.customDomain) files.CNAME = SITE.customDomain + '\n'; // GitHub Pages custom domain
   files['robots.txt'] = `User-agent: *\nAllow: /\nDisallow: /admin/\nSitemap: ${SITE.url}/sitemap.xml\n`;
   // Admin panel: the repository it edits
+  // Editor sign-in data (encrypted, see admin/auth.js), read by the panel before anyone is signed in
+  files['admin/editors.json'] = JSON.stringify(content.editors || { vault: null, editors: [] }, null, 2) + '\n';
   files['admin/config.js'] = `window.ADMIN_CONFIG = ${JSON.stringify({ repo: SITE.repo, branch: SITE.branch || 'main' })};\n`;
   const knowledgeJson = JSON.stringify(Object.fromEntries(Object.entries(KB).map(([k, v]) => [k, v.prompt])));
   return { files, knowledge: knowledgeJson, pages: LANGS.length * PAGES.length, langs: LANGS.length };

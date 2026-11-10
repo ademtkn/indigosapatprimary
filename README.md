@@ -24,7 +24,25 @@ kaydeder. GitHub Pages `main / docs` klasörünü 1–2 dakikada yayınlar; pane
 GitHub Actions gerekmez. Yayınlanmamış değişiklikler tarayıcıda taslak olarak saklanır (sekme kapansa da
 kaybolmaz; yüklenen fotoğraflar hariç).
 
-### Giriş: GitHub token (bir kere yapılır)
+### Editörler (kullanıcı adı + şifre)
+Editörler panele **kullanıcı adı ve şifre** ile girer. Şifre **4–6 karakter, yalnız Latin harf ve rakam**
+(büyük/küçük harf ayrımı var). Editörleri **Editörler** bölümünden site sahibi veya bir *Yönetici* ekler, siler,
+rolünü ve şifresini değiştirir; her editör kendi şifresini değiştirebilir. Değişiklik "Yayınla"dan 1–2 dakika sonra geçerli olur.
+
+- **Yönetici:** içerik + editör yönetimi. **Editör:** yalnız içerik.
+- İlk kurulum: site sahibi aşağıdaki GitHub token ile girer → **Editörler → Editör girişini aç** → editörleri ekler → **Yayınla**.
+- Token süresi dolarsa: bir yönetici **Editörler → GitHub token'ı değiştir** (editörlerin şifreleri değişmez).
+- 5 hatalı denemeden sonra giriş 30 saniyeden başlayarak artan sürelerle bekletilir.
+
+**Güvenlik notu:** Sunucu olmadığı için GitHub token, `admin/editors.json` içinde her editörün şifresiyle şifreli
+olarak (Argon2id + AES-GCM) herkese açık durur. Bu dosyayı ele geçiren biri şifreyi bilgisayarında deneyerek
+bulmaya çalışabilir; 6 karakterlik harf+rakam karışık bir şifre için bu çok uzun sürer, ama `123456` gibi sadece rakamdan
+oluşan bir şifre dakikalar içinde bulunur. Bu yüzden her editöre farklı, harf ve rakam karışık 6 karakterlik
+şifre verin. Token yalnız bu depoya ve yalnız *Contents* iznine sahip olmalı. En kötü durumda biri siteyi
+değiştirebilir; GitHub geçmişinden geri alınır ve token iptal edilip yenisi girilir. Daha güçlü koruma
+(sunucu tarafında deneme sınırı) istenirse giriş, `server/` klasöründeki Cloudflare Worker'a taşınabilir.
+
+### Site sahibi girişi: GitHub token (bir kere yapılır)
 1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
    (doğrudan: https://github.com/settings/personal-access-tokens/new).
 2. **Repository access:** Only select repositories → `indigosapatprimary`.

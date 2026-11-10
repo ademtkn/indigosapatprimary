@@ -11,7 +11,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'docs');
 
 const read = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'content', f), 'utf8'));
-const content = Object.fromEntries(['ky', 'ru', 'en', 'site', 'staff', 'menu', 'news', 'images'].map((k) => [k, read(`${k}.json`)]));
+const content = Object.fromEntries(['ky', 'ru', 'en', 'site', 'staff', 'menu', 'news', 'images', 'editors'].map((k) => [k, read(`${k}.json`)]));
 const out = buildSite(content, { preview: process.argv.includes('--preview') });
 
 fs.rmSync(DIST, { recursive: true, force: true });

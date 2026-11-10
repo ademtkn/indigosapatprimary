@@ -9,7 +9,9 @@
   var FILES = {
     ky: 'content/ky.json', ru: 'content/ru.json', en: 'content/en.json', site: 'content/site.json',
     staff: 'content/staff.json', menu: 'content/menu.json', news: 'content/news.json', images: 'content/images.json',
+    editors: 'content/editors.json',
   };
+  var AUTH = window.ADMIN_AUTH;
   var PAGE_KEYS = ['home', 'about', 'academics', 'programs', 'admissions', 'life', 'staff', 'news', 'contact', '_common', 'ai', 'root'];
   var MULTI = ['body', 'd', 'a', 'lead', 'descr', 'why', 'short', 'shared', 'hello', 'noAnswer', 'error', 'disclaimer', 'bodyIg', 'mapBody'];
   var HIDDEN = ['icon', 'code', 'htmlLang', 'label', 'langName', 'ogLocale'];
@@ -68,7 +70,7 @@
     ext: ico('<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>'), out: ico('<path d="M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 16l4-4-4-4M14 12H3"/>'),
     upload: ico('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'), copy: ico('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/>'),
     link: ico('<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>'),
-    burger: ico('<path d="M4 7h16M4 12h16M4 17h16"/>'), rocket: ico('<path d="M5 15c-1 1-2 4-2 6 2 0 5-1 6-2M9 15l-3-3c1-4 5-9 12-9 0 7-5 11-9 12z"/><circle cx="15" cy="9" r="1.5"/>'),
+    burger: ico('<path d="M4 7h16M4 12h16M4 17h16"/>'), key: ico('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/>'), rocket: ico('<path d="M5 15c-1 1-2 4-2 6 2 0 5-1 6-2M9 15l-3-3c1-4 5-9 12-9 0 7-5 11-9 12z"/><circle cx="15" cy="9" r="1.5"/>'),
     search: ico('<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'),
   };
 
@@ -126,7 +128,7 @@
 
   // ---------- state ----------
   // pending: uploaded images not yet published, path → { b64, url }; shown: published in this session (preview until the site rebuilds)
-  var S = { data: {}, orig: {}, sha: null, pending: {}, shown: {} };
+  var S = { data: {}, orig: {}, sha: null, pending: {}, shown: {}, me: {} };
   var ser = function (k) { return JSON.stringify(S.data[k], null, 2) + '\n'; };
   var referencedUploads = function () {
     var out = {};
@@ -173,37 +175,88 @@
   });
 
   // ---------- login ----------
-  function login(err) {
+  // Editors sign in with username + password (admin/editors.json, see auth.js);
+  // the site owner can also sign in with a GitHub token (first set-up, or when no editor is left).
+  var FAILS = 'isp-admin-fails';
+  function waitLeft() {
+    var f = {}; try { f = JSON.parse(local.get(FAILS) || '{}'); } catch (e) {}
+    return Math.max(0, Math.ceil(((f.until || 0) - Date.now()) / 1000));
+  }
+  function failed() {
+    var f = {}; try { f = JSON.parse(local.get(FAILS) || '{}'); } catch (e) {}
+    f.n = (f.n || 0) + 1;
+    if (f.n >= 5) f.until = Date.now() + Math.min(600, 30 * Math.pow(2, f.n - 5)) * 1000; // 30 s, 60 s, … up to 10 min
+    local.set(FAILS, JSON.stringify(f));
+  }
+  function saveAuth(auth, remember) {
+    local.del('isp-admin-auth'); session.del('isp-admin-auth');
+    (remember ? local : session).set('isp-admin-auth', JSON.stringify(auth));
+  }
+  function login(err, prefill) {
     document.documentElement.lang = ui;
+    prefill = prefill || {};
     var saved = {}; try { saved = JSON.parse(local.get('isp-admin-auth') || session.get('isp-admin-auth') || '{}'); } catch (e) {}
-    root.innerHTML = '<div class="login"><form class="login-card" id="login-form">' +
+    root.innerHTML = '<div class="login"><div class="login-card">' +
       '<div class="login-top"><img src="../assets/img/logo.png" alt="Indigo Sapat" width="120">' + langSwitch() + '</div>' +
       '<h1>' + esc(T('appName')) + '</h1><p class="muted">' + esc(T('loginHelp')) + '</p>' +
-      (err ? '<p class="alert">' + esc(err) + '</p>' : '') +
-      '<label>' + esc(T('token')) + '<input name="token" type="password" autocomplete="current-password" required value="' + esc(saved.token || '') + '" placeholder="github_pat_…"></label>' +
-      '<div class="row2"><label>' + esc(T('repo')) + '<input name="repo" required value="' + esc(saved.repo || CFG.repo || '') + '"></label>' +
-      '<label>' + esc(T('branch')) + '<input name="branch" required value="' + esc(saved.branch || CFG.branch || 'main') + '"></label></div>' +
-      '<label class="check"><input type="checkbox" name="remember"' + (local.get('isp-admin-auth') || !saved.token ? ' checked' : '') + '> ' + esc(T('remember')) + '</label>' +
-      '<button class="btn btn--primary btn--block" type="submit">' + esc(T('signIn')) + '</button>' +
-      '<details class="howto"><summary>' + esc(T('howToken')) + '</summary><ol>' + T('tokenSteps').map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
-      '<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new ↗</a></details>' +
-      '</form></div>';
-    $('#login-form').addEventListener('submit', function (e) {
+      (err ? '<p class="alert" role="alert">' + esc(err) + '</p>' : '') +
+      '<form id="login-form" class="login-form">' +
+      '<label>' + esc(T('username')) + '<input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required value="' + esc(prefill.username || (saved.user && saved.user.username) || '') + '"></label>' +
+      '<label>' + esc(T('password')) + '<input name="password" type="password" autocomplete="current-password" maxlength="6" required></label>' +
+      '<label class="check"><input type="checkbox" name="remember" checked> ' + esc(T('remember')) + '</label>' +
+      '<button class="btn btn--primary btn--block" type="submit">' + esc(T('signIn')) + '</button></form>' +
+      '<details class="howto"' + (prefill.owner ? ' open' : '') + '><summary>' + esc(T('ownerLogin')) + '</summary>' +
+      '<form id="owner-form" class="login-form"><p>' + esc(T('ownerHelp')) + '</p>' +
+      '<label>' + esc(T('token')) + '<input name="token" type="password" autocomplete="off" required placeholder="github_pat_…"></label>' +
+      '<div class="row2"><label>' + esc(T('repo')) + '<input name="repo" required value="' + esc(CFG.repo || '') + '"></label>' +
+      '<label>' + esc(T('branch')) + '<input name="branch" required value="' + esc(CFG.branch || 'main') + '"></label></div>' +
+      '<button class="btn btn--light btn--block" type="submit">' + esc(T('signIn')) + '</button>' +
+      '<ol>' + T('tokenSteps').map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
+      '<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new ↗</a></form></details>' +
+      '</div></div>';
+    $('#login-form').addEventListener('submit', function (e) { e.preventDefault(); passwordLogin(e.target); });
+    $('#owner-form').addEventListener('submit', function (e) {
       e.preventDefault();
-      var f = e.target, auth = { token: f.token.value.trim(), repo: f.repo.value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\/$/, ''), branch: f.branch.value.trim() };
-      local.del('isp-admin-auth'); session.del('isp-admin-auth');
-      (f.remember.checked ? local : session).set('isp-admin-auth', JSON.stringify(auth));
+      var f = e.target, auth = { mode: 'token', token: f.token.value.trim(), repo: f.repo.value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\/$/, ''), branch: f.branch.value.trim() };
+      saveAuth(auth, false);
       start(auth);
+    });
+  }
+  function passwordLogin(f) {
+    var username = f.username.value.trim().toLowerCase(), password = f.password.value, remember = f.remember.checked;
+    var wait = waitLeft();
+    if (wait) { login(T('tooMany').replace('{s}', wait), { username: username }); return; }
+    var b = f.querySelector('button'); b.disabled = true; b.textContent = T('checking');
+    fetch('editors.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : {}; }, function () { return {}; }).then(function (db) {
+      var rec = (db.editors || []).filter(function (x) { return x.username === username; })[0];
+      if (!db.vault || !(db.editors || []).length) throw 'none';
+      if (!rec) throw 'bad';
+      return AUTH.unlock(rec, password).then(function (key) {
+        return AUTH.openVault(key, db.vault).then(function (token) { return { token: token, key: key, rec: rec }; });
+      });
+    }).then(function (r) {
+      local.del(FAILS);
+      var auth = { mode: 'password', token: r.token, repo: CFG.repo, branch: CFG.branch || 'main', k: AUTH.b64(r.key), user: { username: r.rec.username, name: r.rec.name, role: r.rec.role } };
+      saveAuth(auth, remember);
+      start(auth);
+    }).catch(function (e) {
+      if (e === 'none') { login(T('noEditorsYet'), { owner: true }); return; }
+      failed();
+      var w = waitLeft();
+      login(w ? T('tooMany').replace('{s}', w) : T('badLogin'), { username: username });
     });
   }
 
   function start(auth) {
     gh.token = auth.token; gh.repo = auth.repo; gh.branch = auth.branch || 'main';
+    S.me = { mode: auth.mode || 'token', user: auth.user || null, k: auth.k ? AUTH.unb64(auth.k) : null };
     root.innerHTML = '<div class="login"><p class="loading">' + esc(T('loading')) + '</p></div>';
     gh.head().then(function (sha) {
       S.sha = sha;
       var keys = Object.keys(FILES);
-      return Promise.all(keys.map(function (k) { return gh.file(FILES[k]); })).then(function (texts) {
+      return Promise.all(keys.map(function (k) {
+        return gh.file(FILES[k]).catch(function (e) { if (e.status === 404 && k === 'editors') return '{"vault":null,"editors":[]}'; throw e; });
+      })).then(function (texts) {
         keys.forEach(function (k, i) { S.data[k] = JSON.parse(texts[i]); S.orig[k] = ser(k); });
       });
     }).then(function () {
@@ -213,14 +266,14 @@
       shell(); route();
     }).catch(function (e) {
       S.sha = null;
-      login(T('loginFailed') + ' (' + (e.status || e.message) + ')');
+      login(T('loginFailed') + ' (' + (e.status || e.message) + ')', { owner: S.me.mode === 'token' });
     });
   }
 
   function signOut() {
     if (changeCount() && !confirm(T('leaveWarn') + ' ' + T('discardConfirm'))) return;
     local.del('isp-admin-auth'); session.del('isp-admin-auth'); local.del(draftKey());
-    S = { data: {}, orig: {}, sha: null, pending: {}, shown: {} };
+    S = { data: {}, orig: {}, sha: null, pending: {}, shown: {}, me: {} };
     location.hash = ''; login();
   }
 
@@ -228,7 +281,7 @@
     document.documentElement.lang = ui;
     var nav = [
       ['#/', IC.home, T('dashboard')], ['#/pages/home', IC.doc, T('pages')], ['#/menu', IC.menu, T('menu')], ['#/news', IC.news, T('news')],
-      ['#/staff', IC.users, T('staff')], ['#/media', IC.image, T('media')], ['#/settings', IC.gear, T('settings')],
+      ['#/staff', IC.users, T('staff')], ['#/media', IC.image, T('media')], ['#/settings', IC.gear, T('settings')], ['#/editors', IC.key, T('editors')],
     ];
     var site = (S.data.site && S.data.site.url) || '../';
     root.innerHTML =
@@ -241,7 +294,7 @@
       '<div class="layout"><aside class="side" id="side"><nav>' + nav.map(function (n) {
         return '<a href="' + n[0] + '" data-nav="' + n[0].split('/')[1] + '">' + n[1] + '<span>' + esc(n[2]) + '</span></a>' +
           (n[0] === '#/pages/home' ? '<div class="subnav">' + PAGE_KEYS.map(function (k) { return '<a href="#/pages/' + k + '" data-page="' + k + '">' + esc(pageName(k)) + '</a>'; }).join('') + '</div>' : '');
-      }).join('') + '</nav><p class="side-foot">' + esc(gh.repo) + ' · ' + esc(gh.branch) + '</p></aside>' +
+      }).join('') + '</nav><p class="side-foot">' + esc(T('signedInAs')) + ': <b>' + esc(S.me.user ? (S.me.user.name || S.me.user.username) + ' (' + S.me.user.username + ')' : T('owner')) + '</b><br>' + esc(gh.repo) + ' · ' + esc(gh.branch) + '</p></aside>' +
       '<main class="main" id="view"></main></div>';
     $('#publish').addEventListener('click', publishDialog);
     $('#signout').addEventListener('click', signOut);
@@ -276,7 +329,7 @@
     $$('#side [data-page]').forEach(function (a) { a.classList.toggle('on', h[0] === 'pages' && a.dataset.page === h[1]); });
     var y = view.dataset.route === location.hash ? window.scrollY : 0;
     view.dataset.route = location.hash;
-    var r = { '': dashboard, pages: pagesView, menu: menuView, news: newsView, staff: staffView, media: mediaView, settings: settingsView }[h[0]] || dashboard;
+    var r = { '': dashboard, pages: pagesView, menu: menuView, news: newsView, staff: staffView, media: mediaView, settings: settingsView, editors: editorsView }[h[0]] || dashboard;
     view.innerHTML = r(h[1]);
     afterRender(view);
     window.scrollTo(0, y);
@@ -490,6 +543,115 @@
       single(T('aiEndpoint'), 'site', ['aiEndpoint']) + '</section></div>';
   }
 
+  // ---------- editors ----------
+  var isAdmin = function () { return S.me.mode === 'token' || !!(S.me.user && S.me.user.role === 'admin'); };
+  function editorsView() {
+    var db = S.data.editors, list = db.editors || [], me = S.me;
+    var origNames = (JSON.parse(S.orig.editors || '{}').editors || []).map(function (x) { return x.username; });
+    var roleSel = function (i, v) {
+      return '<select' + (i == null ? ' id="ed-role"' : pAttr('editors', ['editors', i, 'role'])) + '>' + ['editor', 'admin'].map(function (r) {
+        return '<option value="' + r + '"' + (v === r ? ' selected' : '') + '>' + esc(T(r === 'admin' ? 'roleAdmin' : 'roleEditor')) + '</option>'; }).join('') + '</select>';
+    };
+    var card = function (e, i) {
+      var mine = me.user && me.user.username === e.username, admin = isAdmin();
+      return '<div class="itm"><div class="itm-bar">' + IC.users + '<span class="itm-prev"><b>' + esc(e.name || e.username) + '</b> · ' + esc(e.username) +
+        (mine ? ' (' + esc(T('you')) + ')' : '') + '</span>' + (origNames.indexOf(e.username) < 0 ? '<span class="pill">' + esc(T('pending')) + '</span>' : '') +
+        '<span class="tools"><button type="button" class="btn btn--light btn--sm" data-go="setpw" data-i="' + i + '">' + IC.key + '<span>' + esc(T('setPassword')) + '</span></button>' +
+        (admin ? '<button type="button" class="iconbtn sm danger" data-go="deleditor" data-i="' + i + '" title="' + esc(T('remove')) + '" aria-label="' + esc(T('remove')) + '">' + IC.trash + '</button>' : '') + '</span></div>' +
+        (admin ? '<div class="row2">' + single(T('displayName'), 'editors', ['editors', i, 'name']) +
+          '<div class="fld"><label class="fld-label">' + esc(T('role')) + '</label>' + roleSel(i, e.role) + '</div></div>' : '') + '</div>';
+    };
+    var html = pageHead(T('editors'), T('editorsHelp'));
+    if (!isAdmin()) {
+      return html + '<div class="editor">' + list.map(function (e, i) { return me.user && e.username === me.user.username ? card(e, i) : ''; }).join('') + '</div>';
+    }
+    if (!db.vault) {
+      return html + '<div class="editor"><section class="card"><h2>' + esc(T('setupVault')) + '</h2><p class="muted">' + esc(T('setupHelp')) + '</p>' +
+        '<button type="button" class="btn btn--primary btn--sm" data-go="setupvault">' + IC.key + '<span>' + esc(T('setupVault')) + '</span></button></section></div>';
+    }
+    if (!me.k) {
+      return html + '<div class="editor"><section class="card"><p>' + esc(T('noKey')) + '</p>' +
+        (me.mode === 'token' ? '<button type="button" class="btn btn--light btn--sm" data-go="resetvault">' + esc(T('resetVault')) + '</button>' : '') + '</section></div>';
+    }
+    return html + '<div class="editor"><p class="note-box">' + esc(T('securityNote')) + '</p>' + list.map(card).join('') +
+      '<section class="card"><h2>' + esc(T('addEditor')) + '</h2>' +
+      '<div class="row2"><div class="fld"><label class="fld-label" for="ed-name">' + esc(T('displayName')) + '</label><input id="ed-name"></div>' +
+      '<div class="fld"><label class="fld-label" for="ed-user">' + esc(T('username')) + ' <small>' + esc(T('usernameRule')) + '</small></label><input id="ed-user" autocapitalize="none" spellcheck="false" autocomplete="off"></div></div>' +
+      '<div class="row2"><div class="fld"><label class="fld-label" for="ed-pw">' + esc(T('password')) + ' <small>' + esc(T('pwRule')) + '</small></label><input id="ed-pw" type="password" maxlength="6" autocomplete="new-password"></div>' +
+      '<div class="fld"><label class="fld-label" for="ed-pw2">' + esc(T('password2')) + '</label><input id="ed-pw2" type="password" maxlength="6" autocomplete="new-password"></div></div>' +
+      '<div class="fld"><label class="fld-label" for="ed-role">' + esc(T('role')) + '</label>' + roleSel(null, 'editor') + '</div>' +
+      '<p class="alert" id="ed-err" hidden></p>' +
+      '<button type="button" class="btn btn--primary btn--sm add" data-go="addeditor">' + IC.plus + '<span>' + esc(T('addEditor')) + '</span></button></section>' +
+      '<section class="card"><h2>' + esc(T('replaceToken')) + '</h2><p class="muted">' + esc(T('replaceHelp')) + '</p>' +
+      '<input id="ed-token" type="password" autocomplete="off" placeholder="github_pat_…">' +
+      '<button type="button" class="btn btn--light btn--sm add" data-go="replacetoken">' + esc(T('save')) + '</button></section>' +
+      (me.mode === 'token' ? '<section class="card"><button type="button" class="btn btn--light btn--sm add" data-go="resetvault">' + esc(T('resetVault')) + '</button></section>' : '') +
+      '</div>';
+  }
+  // Keep the vault key / token of this sign-in up to date in the stored session
+  function keepSession() {
+    var store = local.get('isp-admin-auth') ? local : session, a = {};
+    try { a = JSON.parse(store.get('isp-admin-auth') || '{}'); } catch (e) {}
+    a.token = gh.token; if (S.me.k) a.k = AUTH.b64(S.me.k);
+    store.set('isp-admin-auth', JSON.stringify(a));
+  }
+  // Asks for a new password twice; resolves with it, or null when cancelled
+  function askPassword(title) {
+    return new Promise(function (done) {
+      var d = document.createElement('dialog'); d.className = 'dlg';
+      d.innerHTML = '<form method="dialog"><h2>' + esc(title) + '</h2>' +
+        '<label>' + esc(T('newPassword')) + ' <small class="muted">' + esc(T('pwRule')) + '</small><input name="a" type="password" maxlength="6" autocomplete="new-password"></label>' +
+        '<label>' + esc(T('password2')) + '<input name="b" type="password" maxlength="6" autocomplete="new-password"></label><p class="alert" hidden></p>' +
+        '<div class="row-btns"><button class="btn btn--primary" value="ok">' + esc(T('save')) + '</button><button class="btn btn--light" value="cancel" formnovalidate>' + esc(T('cancel')) + '</button></div></form>';
+      document.body.appendChild(d);
+      var f = d.querySelector('form'), al = d.querySelector('.alert');
+      f.addEventListener('submit', function (e) {
+        if (e.submitter && e.submitter.value === 'cancel') return;
+        var err = !AUTH.PASSWORD.test(f.a.value) ? T('pwRule') : f.a.value !== f.b.value ? T('pwMismatch') : '';
+        if (err) { e.preventDefault(); al.textContent = err; al.hidden = false; }
+      });
+      d.addEventListener('close', function () { var v = d.returnValue === 'ok' ? f.a.value : null; d.remove(); done(v); });
+      d.showModal();
+    });
+  }
+  function editorAction(go, btn) {
+    var db = S.data.editors, list = db.editors = db.editors || [];
+    var busy = function (on) { btn.disabled = on; if (on) btn.dataset.label = btn.innerHTML, btn.textContent = T('checking'); else if (btn.dataset.label) btn.innerHTML = btn.dataset.label; };
+    var fail = function (e) { busy(false); toast(String((e && e.message) || e), 'err'); };
+    if (go === 'setupvault' || go === 'resetvault') {
+      if (go === 'resetvault' && !confirm(T('resetConfirm'))) return;
+      AUTH.newVault(gh.token).then(function (r) {
+        db.vault = r.vault; if (go === 'resetvault') db.editors = [];
+        S.me.k = r.key; keepSession(); touched(); rerender();
+      }).catch(fail);
+    } else if (go === 'addeditor') {
+      var name = $('#ed-name').value.trim(), user = $('#ed-user').value.trim().toLowerCase(), pw = $('#ed-pw').value, role = $('#ed-role').value;
+      var err = !AUTH.USERNAME.test(user) ? T('usernameRule') : list.some(function (x) { return x.username === user; }) ? T('userExists')
+        : !AUTH.PASSWORD.test(pw) ? T('pwRule') : pw !== $('#ed-pw2').value ? T('pwMismatch') : '';
+      if (err) { var el = $('#ed-err'); el.textContent = err; el.hidden = false; return; }
+      busy(true);
+      AUTH.lock(S.me.k, pw, { username: user, name: name, role: role }).then(function (rec) { list.push(rec); touched(); rerender(); }).catch(fail);
+    } else if (go === 'setpw') {
+      var i = +btn.dataset.i, e = list[i];
+      askPassword(T('setPassword') + ': ' + e.username).then(function (pw) {
+        if (!pw) return;
+        busy(true);
+        return AUTH.lock(S.me.k, pw, e).then(function (rec) { list[list.indexOf(e)] = rec; touched(); rerender(); });
+      }).catch(fail);
+    } else if (go === 'deleditor') {
+      var j = +btn.dataset.i, admins = list.filter(function (x) { return x.role === 'admin'; }).length;
+      if (!confirm(list[j].role === 'admin' && admins === 1 ? T('lastAdmin') : T('remove') + ': ' + (list[j].name || list[j].username) + '?')) return;
+      list.splice(j, 1); touched(); rerender();
+    } else if (go === 'replacetoken') {
+      var tok = $('#ed-token').value.trim(); if (!tok) return;
+      busy(true);
+      fetch(API + '/repos/' + gh.repo, { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' } }).then(function (r) {
+        if (!r.ok || !r.json) throw new Error(T('tokenBad'));
+        return AUTH.sealToken(S.me.k, tok);
+      }).then(function (vault) { db.vault = vault; gh.token = tok; keepSession(); touched(); toast(T('tokenOk'), 'ok'); rerender(); }).catch(fail);
+    }
+  }
+
   // ---------- events ----------
   function afterRender(view) {
     var sel = $('.pagesel', view); if (sel) sel.addEventListener('change', function () { location.hash = '#/pages/' + sel.value; });
@@ -529,7 +691,8 @@
     if (a.dataset.clear) { var x = JSON.parse(a.dataset.clear); setAt(S.data[x.f], x.p, ''); touched(); rerender(); return; }
     var go = a.dataset.go;
     if (go) {
-      if (go === 'publish') publishDialog();
+      if (/^(setupvault|resetvault|addeditor|setpw|deleditor|replacetoken)$/.test(go)) editorAction(go, a);
+      else if (go === 'publish') publishDialog();
       else if (go === 'discard') { if (confirm(T('discardConfirm'))) { Object.keys(FILES).forEach(function (k) { S.data[k] = JSON.parse(S.orig[k]); }); S.pending = {}; touched(); rerender(); } }
       else if (go === 'collapse') { var ds = $$('#view details.grp'), open = ds.some(function (d) { return d.open; }); ds.forEach(function (d) { d.open = !open; }); a.textContent = open ? T('expandAll') : T('collapseAll'); }
       else if (go === 'addlink') { S.data.menu.items.push({ type: 'link', url: '', visible: true, label: { ky: '', ru: '', en: '' } }); touched(); rerender(); }
