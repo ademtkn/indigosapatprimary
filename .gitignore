@@ -4,5 +4,3 @@ server/.wrangler/
 .DS_Store
 *.zip
 screenshots/
-# built by GitHub Actions (node src/build.mjs)
-docs/
