@@ -44,6 +44,9 @@ window.ADMIN_I18N = {
       lastAdmin: 'Бул акыркы администратор. Андан кийин редакторлорду сайттын ээси гана башкара алат. Өчүрөлүбү?',
       securityNote: 'Ар бир редакторго башка жана болжолдоо кыйын сыр сөз бериңиз (мисалы «k7Rm2q»). «123456», «aaaa» же туулган күн сыяктуу сыр сөздөрдү колдонбоңуз: кыска сыр сөз оңой табылат.',
       signedInAs: 'Кирген', pending: 'жарыяланган жок',
+      noWriteTitle: 'Токенде жазуу уруксаты жок', noWriteText: 'GitHub токени репозиторийди окуй алат, бирок өзгөртө албайт. Сайттын ээси токендин уруксатын бир жолу оңдошу керек:',
+      noWriteSteps: ['github.com/settings/personal-access-tokens барагын ачып, токенди тандаңыз → Edit.', 'Repository access: indigosapatprimary тандалганын текшериңиз.', 'Permissions → Repository permissions → Contents: «Read and write» (Actions: «Read»).', 'Update басыңыз. Токен ошол эле бойдон калат — кайра «Жарыялоо» баскычын басыңыз.'],
+      noWriteKeep: 'Сиздин өзгөртүүлөрүңүз панелде сакталып турат.',
     },
     ru: {
       appName: 'Панель управления', loginHelp: 'Войдите под своим именем пользователя и паролем.', signIn: 'Войти', signOut: 'Выйти', token: 'Токен GitHub', repo: 'Репозиторий', branch: 'Ветка',
@@ -87,6 +90,9 @@ window.ADMIN_I18N = {
       lastAdmin: 'Это последний администратор. После этого редакторами сможет управлять только владелец сайта. Удалить?',
       securityNote: 'Давайте каждому редактору свой пароль, который трудно угадать (например «k7Rm2q»). Не используйте «123456», «aaaa» или даты рождения: короткий пароль легко подобрать.',
       signedInAs: 'Вход', pending: 'не опубликовано',
+      noWriteTitle: 'У токена нет права на запись', noWriteText: 'Токен GitHub может читать репозиторий, но не может его изменять. Владелец сайта должен один раз исправить права токена:',
+      noWriteSteps: ['Откройте github.com/settings/personal-access-tokens, выберите токен → Edit.', 'Repository access: проверьте, что выбран indigosapatprimary.', 'Permissions → Repository permissions → Contents: «Read and write» (Actions: «Read»).', 'Нажмите Update. Токен остаётся прежним — снова нажмите «Опубликовать».'],
+      noWriteKeep: 'Ваши изменения сохранены в панели.',
     },
     en: {
       appName: 'Admin panel', loginHelp: 'Sign in with your username and password.', signIn: 'Sign in', signOut: 'Sign out', token: 'GitHub token', repo: 'Repository', branch: 'Branch',
@@ -130,6 +136,9 @@ window.ADMIN_I18N = {
       lastAdmin: 'This is the last administrator. After this only the site owner can manage editors. Delete?',
       securityNote: 'Give each editor their own hard-to-guess password (e.g. “k7Rm2q”). Do not use “123456”, “aaaa” or birthdays: short passwords are easy to guess.',
       signedInAs: 'Signed in', pending: 'not published',
+      noWriteTitle: 'The token cannot write', noWriteText: 'The GitHub token can read the repository but not change it. The site owner needs to fix the token’s permissions once:',
+      noWriteSteps: ['Open github.com/settings/personal-access-tokens, choose the token → Edit.', 'Repository access: check that indigosapatprimary is selected.', 'Permissions → Repository permissions → Contents: “Read and write” (Actions: “Read”).', 'Press Update. The token stays the same — press “Publish” again.'],
+      noWriteKeep: 'Your changes are kept in the panel.',
     },
   },
 

@@ -86,7 +86,7 @@
           body ? { 'Content-Type': 'application/json' } : {}),
         body: body ? JSON.stringify(body) : undefined,
       }).then(function (r) {
-        if (!r.ok) return r.text().then(function (t) { var e = new Error('GitHub ' + r.status + ': ' + t.slice(0, 200)); e.status = r.status; throw e; });
+        if (!r.ok) return r.text().then(function (t) { var e = new Error('GitHub ' + r.status + ': ' + t.slice(0, 200)); e.status = r.status; e.url = path; throw e; });
         return accept && accept.indexOf('raw') > -1 ? r.text() : r.json();
       });
     },
@@ -747,6 +747,17 @@
     d.addEventListener('close', function () { var ok = d.returnValue === 'ok', msg = d.querySelector('[name=msg]').value.trim(); d.remove(); if (ok) publish(msg); });
     d.showModal();
   }
+  // The token can read the repository but not write to it (fine-grained token without "Contents: Read and write")
+  function noWriteDialog() {
+    var d = document.createElement('dialog'); d.className = 'dlg';
+    d.innerHTML = '<form method="dialog"><h2>' + esc(T('noWriteTitle')) + '</h2><p>' + esc(T('noWriteText')) + '</p><ol class="steps-list">' +
+      T('noWriteSteps').map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
+      '<a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">github.com/settings/personal-access-tokens ↗</a>' +
+      '<p class="muted">' + esc(T('noWriteKeep')) + '</p><div class="row-btns"><button class="btn btn--primary" value="ok">OK</button></div></form>';
+    document.body.appendChild(d);
+    d.addEventListener('close', function () { d.remove(); });
+    d.showModal();
+  }
   // Git's blob id of a text, to compare a rebuilt page with the one in the repository
   function blobSha(text) {
     var bytes = new TextEncoder().encode(text), headr = new TextEncoder().encode('blob ' + bytes.length + '\0');
@@ -786,7 +797,8 @@
       toast(T('published'), 'ok');
       deployPoll = Date.now(); setTimeout(refreshDeploy, 4000);
     }).catch(function (e) {
-      if (e) toast(T('publishFailed') + ': ' + (e.message || e), 'err');
+      if (e && (e.status === 403 || e.status === 404) && /blobs|refs|trees|commits/.test(e.message + (e.url || ''))) noWriteDialog();
+      else if (e) toast(T('publishFailed') + ': ' + (e.message || e), 'err');
     }).then(function () {
       b.querySelector('span').textContent = T('publish'); updatePublish(); if (/^#?\/?$/.test(location.hash)) rerender();
     });

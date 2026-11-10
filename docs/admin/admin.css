@@ -172,6 +172,7 @@ details.itm > summary::-webkit-details-marker { display: none; }
 .dlg { border: 0; border-radius: 20px; padding: 1.4rem; width: min(92vw, 440px); background: var(--surface); color: var(--ink); box-shadow: 0 30px 60px -20px rgba(0,0,0,.5); }
 .dlg::backdrop { background: rgba(18, 14, 38, .55); }
 .dlg form { display: grid; gap: .9rem; }
+.steps-list { margin: 0; padding-left: 1.2rem; display: grid; gap: .4rem; font-size: .92rem; }
 .toast { position: fixed; z-index: 100; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(92vw, 520px);
   background: var(--ink); color: var(--bg); padding: .8rem 1.1rem; border-radius: 14px; font-weight: 800; box-shadow: 0 16px 30px -12px rgba(0,0,0,.5); transition: opacity .3s, transform .3s; }
 .toast--ok { background: var(--ok); color: #fff; } .toast--err { background: var(--bad); color: #fff; }
