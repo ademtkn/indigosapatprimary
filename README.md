@@ -18,9 +18,11 @@ WordPress/Joomla gibi, kod bilmeden siteyi yönetmek için. Panel arayüzü Kır
 | **Ayarlar** | Telefonlar, WhatsApp, adres ve çalışma saatleri (3 dil), Instagram, 2GIS, alan adı. |
 
 **Nasıl çalışır:** Sunucu yoktur. Panel, içerikleri bu GitHub deposundaki `content/*.json` dosyalarında tutar.
-"Yayınla" düğmesi tüm değişiklikleri (ve yüklenen fotoğrafları) tek bir commit olarak depoya kaydeder; GitHub Actions
-siteyi 1–2 dakikada yeniden derleyip yayınlar. Panel, son yayının durumunu gösterir. Yayınlanmamış değişiklikler
-tarayıcıda taslak olarak saklanır (sekme kapansa da kaybolmaz; yüklenen fotoğraflar hariç).
+"Yayınla" düğmesine basınca panel siteyi tarayıcıda yeniden oluşturur (`node src/build.mjs` ile aynı şablonlar:
+`src/site.mjs`) ve değişen içerikleri, sayfaları (`docs/`) ve yüklenen fotoğrafları **tek bir commit** olarak depoya
+kaydeder. GitHub Pages `main / docs` klasörünü 1–2 dakikada yayınlar; panel son yayının durumunu gösterir.
+GitHub Actions gerekmez. Yayınlanmamış değişiklikler tarayıcıda taslak olarak saklanır (sekme kapansa da
+kaybolmaz; yüklenen fotoğraflar hariç).
 
 ### Giriş: GitHub token (bir kere yapılır)
 1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
@@ -30,9 +32,9 @@ tarayıcıda taslak olarak saklanır (sekme kapansa da kaybolmaz; yüklenen foto
 4. Token'ı panele yapıştırın. Her editöre ayrı token verilebilir; token iptal edilince erişim biter.
    Depoda yazma yetkisi olmayan biri panelde hiçbir şeyi değiştiremez.
 
-## İlk kurulum (bir kere)
-**Settings → Pages → Build and deployment → Source: GitHub Actions.** (`docs/` artık depoda tutulmuyor;
-`.github/workflows/deploy.yml` her push'ta siteyi derleyip yayınlar.)
+## Yayın ayarı
+**Settings → Pages → Deploy from a branch → `main` / `/docs`** (şu anki ayar). Kodda (şablon, CSS) değişiklik
+yapan geliştirici `node src/build.mjs` çalıştırıp `docs/` dahil commit eder.
 
 ## Yapı
 ```
@@ -43,7 +45,8 @@ content/news.json      Haberler
 content/staff.json     Kadro
 content/images.json    Fotoğraf alanı → yüklenen dosya (assets/uploads/…)
 admin/                 Yönetim paneli (statik; derlemede docs/admin'e kopyalanır)
-src/build.mjs          Sayfa şablonları; content/ → docs/
+src/site.mjs           Sayfa şablonları (Node'da ve panelde aynen çalışır; docs/admin/lib'e kopyalanır)
+src/build.mjs          content/ → docs/ (Node)
 assets/                Tasarım, betikler, logo; assets/uploads/ panelden yüklenen fotoğraflar
 server/                Yapay zeka asistanı için Cloudflare Worker (isteğe bağlı)
 ```

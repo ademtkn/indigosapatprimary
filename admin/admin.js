@@ -91,15 +91,24 @@
     rp: function (s) { return '/repos/' + gh.repo + s; },
     file: function (p) { return gh.req('GET', gh.rp('/contents/' + p.split('/').map(encodeURIComponent).join('/') + '?ref=' + encodeURIComponent(gh.branch)), null, 'application/vnd.github.raw+json'); },
     head: function () { return gh.req('GET', gh.rp('/git/ref/heads/' + encodeURIComponent(gh.branch))).then(function (r) { return r.object.sha; }); },
-    // One commit for all files: [{ path, content, encoding: 'utf-8' | 'base64' }]
+    // Path → blob sha of every file in the commit (to send only files that changed)
+    tree: function (commitSha) {
+      return gh.req('GET', gh.rp('/git/commits/' + commitSha)).then(function (c) {
+        return gh.req('GET', gh.rp('/git/trees/' + c.tree.sha + '?recursive=1'));
+      }).then(function (t) {
+        var m = {}; (t.tree || []).forEach(function (e) { if (e.type === 'blob') m[e.path] = e.sha; }); return m;
+      });
+    },
+    // One commit for all files: [{ path, content, encoding: 'utf-8' | 'base64' }]; equal contents share one blob
     commit: function (files, message, parent) {
-      var tree;
+      var tree, made = {};
       return gh.req('GET', gh.rp('/git/commits/' + parent)).then(function (c) {
         tree = c.tree.sha;
         return files.reduce(function (p, f) {
           return p.then(function (acc) {
-            return gh.req('POST', gh.rp('/git/blobs'), { content: f.content, encoding: f.encoding })
-              .then(function (b) { return acc.concat({ path: f.path, mode: '100644', type: 'blob', sha: b.sha }); });
+            var key = f.encoding + ':' + f.content;
+            var blob = made[key] ? Promise.resolve(made[key]) : gh.req('POST', gh.rp('/git/blobs'), { content: f.content, encoding: f.encoding }).then(function (b) { return (made[key] = b.sha); });
+            return blob.then(function (sha) { return acc.concat({ path: f.path, mode: '100644', type: 'blob', sha: sha }); });
           });
         }, Promise.resolve([]));
       }).then(function (entries) {
@@ -575,14 +584,37 @@
     d.addEventListener('close', function () { var ok = d.returnValue === 'ok', msg = d.querySelector('[name=msg]').value.trim(); d.remove(); if (ok) publish(msg); });
     d.showModal();
   }
+  // Git's blob id of a text, to compare a rebuilt page with the one in the repository
+  function blobSha(text) {
+    var bytes = new TextEncoder().encode(text), headr = new TextEncoder().encode('blob ' + bytes.length + '\0');
+    var all = new Uint8Array(headr.length + bytes.length); all.set(headr); all.set(bytes, headr.length);
+    return crypto.subtle.digest('SHA-1', all).then(function (h) { return [].map.call(new Uint8Array(h), function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); });
+  }
+  // The site is rebuilt here with the same templates as `node src/build.mjs` (docs/admin/lib/site.mjs)
+  // and the changed pages are committed to docs/, which GitHub Pages serves.
+  function builtFiles(head) {
+    return Promise.all([import('./lib/site.mjs'), gh.tree(head)]).then(function (r) {
+      var content = {}; Object.keys(FILES).forEach(function (k) { content[k] = S.data[k]; });
+      var out = r[0].buildSite(clone(content)), have = r[1];
+      var list = Object.keys(out.files).map(function (p) { return { path: 'docs/' + p, content: out.files[p] }; })
+        .concat({ path: 'server/knowledge.json', content: out.knowledge });
+      return Promise.all(list.map(function (f) { return blobSha(f.content).then(function (s) { return s === have[f.path] ? null : { path: f.path, content: f.content, encoding: 'utf-8' }; }); }))
+        .then(function (x) { return x.filter(Boolean); });
+    });
+  }
   function publish(msg) {
     var b = $('#publish'); b.disabled = true; b.querySelector('span').textContent = T('publishing');
     var ch = changed(), up = referencedUploads();
     var files = ch.map(function (k) { return { path: FILES[k], content: ser(k), encoding: 'utf-8' }; })
-      .concat(up.map(function (pth) { return { path: pth, content: S.pending[pth].b64, encoding: 'base64' }; }));
-    gh.head().then(function (head) {
+      .concat(up.map(function (pth) { return { path: pth, content: S.pending[pth].b64, encoding: 'base64' }; }))
+      .concat(up.map(function (pth) { return { path: 'docs/' + pth, content: S.pending[pth].b64, encoding: 'base64' }; }));
+    var head;
+    gh.head().then(function (h) {
+      head = h;
       if (head !== S.sha && !confirm(T('conflict'))) throw null;
-      return gh.commit(files, msg || 'Admin: ' + ch.concat(up).map(function (x) { return (FILES[x] || x).replace(/^content\/|^assets\/uploads\//, ''); }).join(', '), head);
+      return builtFiles(head);
+    }).then(function (pages) {
+      return gh.commit(files.concat(pages), msg || 'Admin: ' + ch.concat(up).map(function (x) { return (FILES[x] || x).replace(/^content\/|^assets\/uploads\//, ''); }).join(', '), head);
     }).then(function (sha) {
       S.sha = sha;
       ch.forEach(function (k) { S.orig[k] = ser(k); });
