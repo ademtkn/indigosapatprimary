@@ -1,0 +1,45 @@
+{
+  "showApply": true,
+  "items": [
+    {
+      "type": "page",
+      "page": "about",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "academics",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "programs",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "admissions",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "life",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "staff",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "news",
+      "visible": true
+    },
+    {
+      "type": "page",
+      "page": "contact",
+      "visible": true
+    }
+  ]
+}

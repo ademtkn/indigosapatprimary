@@ -1,0 +1,386 @@
+[
+  {
+    "id": "director",
+    "dept": "lead",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Директор",
+      "ru": "Директор",
+      "en": "Director"
+    }
+  },
+  {
+    "id": "deputy",
+    "dept": "lead",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Директордун окуу иштери боюнча орун басары",
+      "ru": "Заместитель директора по учебной работе",
+      "en": "Deputy Director, Academic Affairs"
+    }
+  },
+  {
+    "id": "methodist",
+    "dept": "lead",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч мектептин методисти (Сингапур математикасы)",
+      "ru": "Методист начальной школы (сингапурская математика)",
+      "en": "Head of Primary Methods (Singapore maths)"
+    }
+  },
+  {
+    "id": "classRu1",
+    "dept": "class",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч класс мугалими, орус классы",
+      "ru": "Учитель начальных классов, русский класс",
+      "en": "Class teacher, Russian-medium class"
+    }
+  },
+  {
+    "id": "classRu2",
+    "dept": "class",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч класс мугалими, орус классы",
+      "ru": "Учитель начальных классов, русский класс",
+      "en": "Class teacher, Russian-medium class"
+    }
+  },
+  {
+    "id": "classRu3",
+    "dept": "class",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч класс мугалими, орус классы",
+      "ru": "Учитель начальных классов, русский класс",
+      "en": "Class teacher, Russian-medium class"
+    }
+  },
+  {
+    "id": "classKy1",
+    "dept": "class",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч класс мугалими, кыргыз классы",
+      "ru": "Учитель начальных классов, кыргызский класс",
+      "en": "Class teacher, Kyrgyz-medium class"
+    }
+  },
+  {
+    "id": "classKy2",
+    "dept": "class",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч класс мугалими, кыргыз классы",
+      "ru": "Учитель начальных классов, кыргызский класс",
+      "en": "Class teacher, Kyrgyz-medium class"
+    }
+  },
+  {
+    "id": "classKy3",
+    "dept": "class",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Башталгыч класс мугалими, кыргыз классы",
+      "ru": "Учитель начальных классов, кыргызский класс",
+      "en": "Class teacher, Kyrgyz-medium class"
+    }
+  },
+  {
+    "id": "native1",
+    "dept": "english",
+    "photo": "",
+    "native": true,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Англис тили мугалими",
+      "ru": "Учитель английского языка",
+      "en": "English teacher"
+    }
+  },
+  {
+    "id": "native2",
+    "dept": "english",
+    "photo": "",
+    "native": true,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Англис тили мугалими",
+      "ru": "Учитель английского языка",
+      "en": "English teacher"
+    }
+  },
+  {
+    "id": "english1",
+    "dept": "english",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Англис тили мугалими",
+      "ru": "Учитель английского языка",
+      "en": "English teacher"
+    }
+  },
+  {
+    "id": "english2",
+    "dept": "english",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Англис тили мугалими",
+      "ru": "Учитель английского языка",
+      "en": "English teacher"
+    }
+  },
+  {
+    "id": "englishMath",
+    "dept": "special",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "English Maths мугалими",
+      "ru": "Учитель English Maths",
+      "en": "English Maths teacher"
+    }
+  },
+  {
+    "id": "robotics",
+    "dept": "special",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Робототехника мугалими",
+      "ru": "Учитель робототехники",
+      "en": "Robotics teacher"
+    }
+  },
+  {
+    "id": "chess",
+    "dept": "special",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Шахмат мугалими",
+      "ru": "Учитель шахмат",
+      "en": "Chess teacher"
+    }
+  },
+  {
+    "id": "science",
+    "dept": "special",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Magic Science мугалими",
+      "ru": "Учитель Magic Science",
+      "en": "Magic Science teacher"
+    }
+  },
+  {
+    "id": "kyrgyz",
+    "dept": "subjects",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Кыргыз тили мугалими",
+      "ru": "Учитель кыргызского языка",
+      "en": "Kyrgyz language teacher"
+    }
+  },
+  {
+    "id": "russian",
+    "dept": "subjects",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Орус тили мугалими",
+      "ru": "Учитель русского языка",
+      "en": "Russian language teacher"
+    }
+  },
+  {
+    "id": "pe",
+    "dept": "subjects",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Дене тарбия",
+      "ru": "Физическая культура",
+      "en": "Physical education"
+    }
+  },
+  {
+    "id": "art",
+    "dept": "subjects",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Сүрөт жана музыка",
+      "ru": "Рисование и музыка",
+      "en": "Art & music"
+    }
+  },
+  {
+    "id": "psychologist",
+    "dept": "support",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Мектеп психологу",
+      "ru": "Школьный психолог",
+      "en": "School psychologist"
+    }
+  },
+  {
+    "id": "nurse",
+    "dept": "support",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Медайым",
+      "ru": "Медсестра",
+      "en": "School nurse"
+    }
+  },
+  {
+    "id": "admissions",
+    "dept": "support",
+    "photo": "",
+    "native": false,
+    "name": {
+      "ky": "",
+      "ru": "",
+      "en": ""
+    },
+    "role": {
+      "ky": "Кабыл алуу адиси",
+      "ru": "Специалист по приёму",
+      "en": "Admissions officer"
+    }
+  }
+]
