@@ -31,8 +31,8 @@ yalnız Latin harf ve rakam** (büyük/küçük harf ayrımı var). Hesap deği�
 
 **İlk kurulum (bir kez):**
 1. Panelde giriş ekranının altındaki **"Site sahibi: GitHub erişim anahtarıyla giriş"** bölümünü açıp GitHub token'ınızla girin.
-2. Soldaki menüden **Editörler**'e gidin; kendi **Site sahibi** hesabınızı (kullanıcı adı, ad soyad, şifre) oluşturun.
-3. **Kaydet ve yayınla**'ya basın. Bundan sonra siz de editörler de kullanıcı adı ve şifreyle girersiniz.
+2. Soldaki menüden **Editörler**'e gidin; adınızı ve kendi şifrenizi yazıp **Hesabımı oluştur**'a basın (kullanıcı adı addan doldurulur).
+3. Hesap hemen kaydedilir. 1–2 dakika sonra siz de editörler de kullanıcı adı ve şifreyle girersiniz.
 
 **Editör eklemek (basit):** Editörler → "Editör ekle" kutusuna kişinin **adını** yazın. Kullanıcı adı (Kiril harfler
 Latin'e çevrilir: "Айгүл Асанова" → `aigul`) ve 6 karakterlik güçlü bir şifre kendiliğinden doldurulur; isterseniz
