@@ -588,6 +588,26 @@
   var ownerRole = function (r) { return r === 'owner' || r === 'admin'; };
   var isOwner = function () { return S.me.mode === 'token' || !!(S.me.user && ownerRole(S.me.user.role)); };
   var roleName = function (r) { return T(ownerRole(r) ? 'ed.owner' : 'ed.editor'); };
+  // Username from a full name: first word, Cyrillic written in Latin letters ("Айгүл Асанова" → "aigul")
+  var LAT = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'j', з: 'z', и: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', ң: 'n', о: 'o', ө: 'o', п: 'p',
+    р: 'r', с: 's', т: 't', у: 'u', ү: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u' };
+  // fresh: all accounts are replaced (first account / start over), so existing names do not count
+  function usernameFor(name, fresh) {
+    var w = String(name).trim().toLowerCase().split(/\s+/)[0] || '';
+    var u = w.split('').map(function (c) { return LAT[c] != null ? LAT[c] : c; }).join('').replace(/[^a-z0-9]/g, '').slice(0, 16);
+    if (u.length < 3) u = (u + 'user').slice(0, 4);
+    var taken = fresh ? [] : (S.data.editors.editors || []).map(function (x) { return x.username; }), out = u, n = 2;
+    while (taken.indexOf(out) > -1) out = u + n++;
+    return out;
+  }
+  // 6 characters with capitals, small letters and digits; no look-alikes (0/O, 1/l/I)
+  function newPassword() {
+    var sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789'], all = sets.join(''), pw, r;
+    do { pw = ''; r = crypto.getRandomValues(new Uint32Array(6)); for (var i = 0; i < 6; i++) pw += all[r[i] % all.length]; }
+    while (!sets.every(function (set) { return pw.split('').some(function (c) { return set.indexOf(c) > -1; }); }));
+    return pw;
+  }
+  var lastAdded = null; // { name, username, password } shown once after an account is added
   function editorsView() {
     var db = S.data.editors, list = db.editors = db.editors || [], me = S.me, owner = isOwner();
     var field = function (label, hint, inner) { return '<div class="fld"><label class="fld-label">' + esc(label) + (hint ? ' <small>' + esc(hint) + '</small>' : '') + '</label>' + inner + '</div>'; };
@@ -596,11 +616,14 @@
       return '<select' + attrs + '>' + ['editor', 'owner'].map(function (r) { return '<option value="' + r + '"' + ((ownerRole(v) ? 'owner' : 'editor') === r ? ' selected' : '') + '>' + esc(roleName(r)) + '</option>'; }).join('') + '</select>';
     };
     // First account, or start over: a new vault for the current GitHub token and the owner's own account
-    var createFirst = function (title, lead, reset) {
-      return '<section class="card' + (reset ? ' card--danger' : '') + '"><h2>' + esc(title) + '</h2><p class="muted">' + esc(lead) + '</p>' +
-        '<div class="row3">' + field(T('ed.username'), T('ed.userRule'), '<input id="cf-user" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="admin">') +
-        field(T('ed.name'), '', '<input id="cf-name">') + field(T('ed.password'), T('ed.pwRule'), pwInput('cf-pw')) + '</div>' +
-        '<button type="button" class="btn ' + (reset ? 'btn--danger' : 'btn--primary') + ' btn--sm add" data-go="createfirst"' + (reset ? ' data-reset="1"' : '') + '>' + esc(T(reset ? 'ed.resetBtn' : 'ed.createFirst')) + '</button></section>';
+    // Start over is rarely needed: closed by default, open when it is the only way forward (token sign-in)
+    var createFirst = function (title, lead, reset, open) {
+      var tag = reset ? 'details' : 'section';
+      return '<' + tag + ' class="card' + (reset ? ' card--danger reset-box' : '') + '"' + (open ? ' open' : '') + '>' + (reset ? '<summary>' + esc(title) + '</summary>' : '<h2>' + esc(title) + '</h2>') + '<p class="muted">' + esc(lead) + '</p>' +
+        '<div class="row3">' + field(T('ed.name'), '', '<input id="cf-name" data-userfor="cf-user" data-fresh="1">') +
+        field(T('ed.username'), T('ed.userRule'), '<input id="cf-user" autocomplete="off" autocapitalize="none" spellcheck="false">') +
+        field(T('ed.password'), T('ed.pwRule'), pwInput('cf-pw')) + '</div>' +
+        '<button type="button" class="btn ' + (reset ? 'btn--danger' : 'btn--primary') + ' btn--sm add" data-go="createfirst"' + (reset ? ' data-reset="1"' : '') + '>' + esc(T(reset ? 'ed.resetBtn' : 'ed.createFirst')) + '</button></' + tag + '>';
     };
     var parts = [];
     if (!db.vault || !list.length) {
@@ -609,7 +632,7 @@
       // Signed in with a GitHub token: the accounts exist but cannot be changed without an owner's password
       parts.push('<section class="card"><p>' + esc(T('ed.tokenOnly')) + '</p><ul class="ed-list">' + list.map(function (x) {
         return '<li><b>' + esc(x.username) + '</b>' + (x.name ? ' (' + esc(x.name) + ')' : '') + ' · ' + esc(roleName(x.role)) + '</li>'; }).join('') + '</ul></section>');
-      parts.push(createFirst(T('ed.resetTitle'), T('ed.resetLead'), true));
+      parts.push(createFirst(T('ed.resetTitle'), T('ed.resetLead'), true, true));
     } else {
       parts.push(list.map(function (x, i) {
         var self = me.user && me.user.username === x.username;
@@ -622,12 +645,23 @@
           '</div></div>';
       }).join(''));
       if (owner) {
-        parts.push('<section class="card"><h2>' + esc(T('ed.addTitle')) + '</h2><div class="row2">' +
-          field(T('ed.username'), T('ed.userRule'), '<input id="ed-user" autocomplete="off" autocapitalize="none" spellcheck="false">') + field(T('ed.name'), '', '<input id="ed-name">') +
-          field(T('ed.password'), T('ed.pwRule'), pwInput('ed-pw')) + field(T('ed.role'), '', roleSel(' id="ed-role"', 'editor')) + '</div>' +
-          '<button type="button" class="btn btn--primary btn--sm add" data-go="addeditor">' + IC.plus + '<span>' + esc(T('ed.add')) + '</span></button></section>');
+        // Adding someone: type the name; username and password are filled in and can be changed
+        parts.push('<section class="card add-card"><h2>' + esc(T('ed.addTitle')) + '</h2><p class="muted">' + esc(T('ed.addHelp')) + '</p>' +
+          '<div class="row3">' + field(T('ed.name'), '', '<input id="ed-name" data-userfor="ed-user" placeholder="Айгүл Асанова">') +
+          field(T('ed.username'), '', '<input id="ed-user" autocomplete="off" autocapitalize="none" spellcheck="false">') +
+          field(T('ed.password'), '', '<div class="pwrow"><input id="ed-pw" class="mono" maxlength="6" autocomplete="off" spellcheck="false" value="' + newPassword() + '">' +
+            '<button type="button" class="iconbtn" data-go="genpw" title="' + esc(T('ed.gen')) + '" aria-label="' + esc(T('ed.gen')) + '">↻</button></div>') + '</div>' +
+          '<label class="switch"><input type="checkbox" id="ed-owner"><span>' + esc(T('ed.makeOwner')) + '</span></label>' +
+          '<button type="button" class="btn btn--primary add" data-go="addeditor">' + IC.plus + '<span>' + esc(T('ed.addSave')) + '</span></button></section>');
         parts.push(createFirst(T('ed.resetTitle'), T('ed.resetLead'), true));
       }
+    }
+    if (lastAdded) {
+      var url = String(S.data.site.url || '').replace(/\/$/, '') + '/admin/';
+      var info = T('ed.address') + ': ' + url + '\n' + T('ed.username') + ': ' + lastAdded.username + '\n' + T('ed.password') + ': ' + lastAdded.password;
+      parts.unshift('<section class="card ready-card"><h2>✓ ' + esc(T('ed.readyTitle')) + '</h2><p>' + esc(T('ed.readyText').replace('{0}', lastAdded.name || lastAdded.username)) + '</p>' +
+        '<pre class="ready-info">' + esc(info) + '</pre><div class="row-btns"><button type="button" class="btn btn--primary btn--sm" data-go="copyready" data-text="' + esc(info) + '">' + IC.copy + '<span>' + esc(T('copy')) + '</span></button>' +
+        '<button type="button" class="btn btn--light btn--sm" data-go="closeready">' + esc(T('ed.close')) + '</button></div></section>');
     }
     return pageHead(T('editors'), owner ? T('ed.lead') : T('ed.leadEditor')) + '<div class="editor">' + parts.join('') +
       '<section class="card note-card"><h2>' + esc(T('ed.secTitle')) + '</h2><p>' + esc(T('ed.sec')) + '</p></section></div>';
@@ -644,11 +678,15 @@
     var val = function (id) { var el = $('#' + id); return el ? el.value : ''; };
     var badUser = function (u) { return !AUTH.USERNAME.test(u) ? T('ed.badUser') : list.some(function (x) { return x.username === u; }) ? T('ed.exists') : ''; };
     var badPw = function (pw) { return AUTH.PASSWORD.test(pw) ? '' : T('ed.badPw'); };
+    // Every account change is saved and published at once (only content/editors.json)
     var work = function (job) {
       var label = btn.innerHTML; btn.disabled = true; btn.textContent = T('ed.working');
-      job().then(function () { toast(T('ed.saveHint'), 'ok'); touched(); rerender(); },
+      job().then(function () { touched(); return saveEditors(); }).then(function () { rerender(); },
         function (e) { btn.disabled = false; btn.innerHTML = label; toast(String((e && e.message) || e), 'err'); });
     };
+    if (go === 'genpw') { $('#ed-pw').value = newPassword(); return; }
+    if (go === 'copyready') { copyText(btn.dataset.text); return; }
+    if (go === 'closeready') { lastAdded = null; rerender(); return; }
     if (go === 'createfirst') {
       var reset = !!btn.dataset.reset, u = val('cf-user').trim().toLowerCase(), n = val('cf-name').trim(), pw = val('cf-pw');
       var err = !AUTH.USERNAME.test(u) ? T('ed.badUser') : badPw(pw);
@@ -664,19 +702,33 @@
         });
       });
     } else if (go === 'addeditor') {
-      var nu = val('ed-user').trim().toLowerCase(), npw = val('ed-pw');
-      var e2 = badUser(nu) || badPw(npw);
+      var nn = val('ed-name').trim(), nu = val('ed-user').trim().toLowerCase(), npw = val('ed-pw').trim();
+      var e2 = (nn ? '' : T('ed.needName')) || badUser(nu) || badPw(npw);
       if (e2) { toast(e2, 'err'); return; }
-      work(function () { return AUTH.lock(S.me.k, npw, { username: nu, name: val('ed-name').trim(), role: val('ed-role') }).then(function (rec) { list.push(rec); }); });
+      work(function () {
+        return AUTH.lock(S.me.k, npw, { username: nu, name: nn, role: $('#ed-owner').checked ? 'owner' : 'editor' })
+          .then(function (rec) { list.push(rec); lastAdded = { name: nn, username: nu, password: npw }; });
+      });
     } else if (go === 'setpw') {
-      var i = +btn.dataset.i, x = list[i], p2 = val('pw-' + i), e3 = badPw(p2);
+      var i = +btn.dataset.i, x = list[i], p2 = val('pw-' + i), e3 = badPw(p2), mine = S.me.user && S.me.user.username === x.username;
       if (e3) { toast(e3, 'err'); return; }
-      work(function () { return AUTH.lock(S.me.k, p2, x).then(function (rec) { list[list.indexOf(x)] = rec; }); });
+      work(function () {
+        return AUTH.lock(S.me.k, p2, x).then(function (rec) { list[list.indexOf(x)] = rec; if (!mine) lastAdded = { name: x.name, username: x.username, password: p2 }; });
+      });
     } else if (go === 'deleditor') {
       var j = +btn.dataset.i;
       if (!confirm(T('ed.delConfirm').replace('{0}', list[j].username))) return;
-      list.splice(j, 1); touched(); rerender();
+      list.splice(j, 1); touched(); btn.disabled = true;
+      saveEditors().then(function () { rerender(); });
     }
+  }
+  function saveEditors() {
+    return publish('Admin: editor accounts', ['editors']).then(function (ok) { if (ok) toast(T('ed.saved'), 'ok'); });
+  }
+  function copyText(text) {
+    var done = function () { toast(T('copied'), 'ok'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { prompt('', text); });
+    else prompt('', text);
   }
 
   // ---------- events ----------
@@ -693,12 +745,17 @@
     });
     $$('[data-img]', view).forEach(function (inp) { inp.addEventListener('change', onImage); });
     $$('textarea', view).forEach(grow);
+    $$('[data-userfor]', view).forEach(function (nameEl) {
+      var userEl = $('#' + nameEl.dataset.userfor);
+      userEl.addEventListener('input', function () { userEl.dataset.manual = '1'; });
+      nameEl.addEventListener('input', function () { if (!userEl.dataset.manual) userEl.value = nameEl.value.trim() ? usernameFor(nameEl.value, !!nameEl.dataset.fresh) : ''; });
+    });
     if ($('#deploy', view)) refreshDeploy();
   }
   function grow(t) { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
 
   document.addEventListener('input', onEdit);
-  document.addEventListener('change', function (e) { if (e.target.matches('select[data-f], input[type=checkbox][data-f], input[type=date][data-f]')) onEdit(e); });
+  document.addEventListener('change', function (e) { if (e.target.matches('select[data-f], input[type=checkbox][data-f], input[type=date][data-f], input[data-f="editors"]')) onEdit(e); });
   function onEdit(e) {
     var el = e.target; if (!el.dataset || !el.dataset.f || !S.sha) return;
     var p = JSON.parse(el.dataset.p), v = el.type === 'checkbox' ? el.checked : el.value;
@@ -706,6 +763,7 @@
     if (el.tagName === 'TEXTAREA') grow(el);
     touched();
     if (el.type === 'checkbox' && /^(menu|news)$/.test(el.dataset.f)) rerender();
+    if (el.dataset.f === 'editors' && e.type === 'change') saveEditors();
   }
 
   document.addEventListener('click', function (e) {
@@ -718,7 +776,7 @@
     if (a.dataset.clear) { var x = JSON.parse(a.dataset.clear); setAt(S.data[x.f], x.p, ''); touched(); rerender(); return; }
     var go = a.dataset.go;
     if (go) {
-      if (/^(createfirst|addeditor|setpw|deleditor)$/.test(go)) editorAction(go, a);
+      if (/^(createfirst|addeditor|setpw|deleditor|genpw|copyready|closeready)$/.test(go)) editorAction(go, a);
       else if (go === 'publish') publishDialog();
       else if (go === 'discard') { if (confirm(T('discardConfirm'))) { Object.keys(FILES).forEach(function (k) { S.data[k] = JSON.parse(S.orig[k]); }); S.pending = {}; touched(); rerender(); } }
       else if (go === 'collapse') { var ds = $$('#view details.grp'), open = ds.some(function (d) { return d.open; }); ds.forEach(function (d) { d.open = !open; }); a.textContent = open ? T('expandAll') : T('collapseAll'); }
@@ -793,9 +851,10 @@
   }
   // The site is rebuilt here with the same templates as `node src/build.mjs` (docs/admin/lib/site.mjs)
   // and the changed pages are committed to docs/, which GitHub Pages serves.
-  function builtFiles(head) {
+  // only: publish just these content files (the other edits stay unpublished and out of the pages)
+  function builtFiles(head, only) {
     return Promise.all([import('./lib/site.mjs'), gh.tree(head)]).then(function (r) {
-      var content = {}; Object.keys(FILES).forEach(function (k) { content[k] = S.data[k]; });
+      var content = {}; Object.keys(FILES).forEach(function (k) { content[k] = !only || only.indexOf(k) > -1 ? S.data[k] : JSON.parse(S.orig[k]); });
       var out = r[0].buildSite(clone(content)), have = r[1];
       var list = Object.keys(out.files).map(function (p) { return { path: 'docs/' + p, content: out.files[p] }; })
         .concat({ path: 'server/knowledge.json', content: out.knowledge });
@@ -803,31 +862,34 @@
         .then(function (x) { return x.filter(Boolean); });
     });
   }
-  function publish(msg) {
+  // Resolves true when published. only: list of content keys to publish (e.g. ['editors']), else everything
+  function publish(msg, only) {
     var b = $('#publish'); b.disabled = true; b.querySelector('span').textContent = T('publishing');
-    var ch = changed(), up = referencedUploads();
+    var ch = changed().filter(function (k) { return !only || only.indexOf(k) > -1; }), up = only ? [] : referencedUploads();
     var files = ch.map(function (k) { return { path: FILES[k], content: ser(k), encoding: 'utf-8' }; })
       .concat(up.map(function (pth) { return { path: pth, content: S.pending[pth].b64, encoding: 'base64' }; }))
       .concat(up.map(function (pth) { return { path: 'docs/' + pth, content: S.pending[pth].b64, encoding: 'base64' }; }));
-    var head;
-    gh.head().then(function (h) {
+    var head, done = false;
+    return gh.head().then(function (h) {
       head = h;
       if (head !== S.sha && !confirm(T('conflict'))) throw null;
-      return builtFiles(head);
+      return builtFiles(head, only);
     }).then(function (pages) {
       return gh.commit(files.concat(pages), msg || 'Admin: ' + ch.concat(up).map(function (x) { return (FILES[x] || x).replace(/^content\/|^assets\/uploads\//, ''); }).join(', '), head);
     }).then(function (sha) {
       S.sha = sha;
       ch.forEach(function (k) { S.orig[k] = ser(k); });
       up.forEach(function (pth) { S.shown[pth] = S.pending[pth].url; delete S.pending[pth]; });
-      local.del(draftKey());
-      toast(T('published'), 'ok');
+      if (changeCount()) touched(); else local.del(draftKey());
+      if (!only) toast(T('published'), 'ok');
+      done = true;
       deployPoll = Date.now(); setTimeout(refreshDeploy, 4000);
     }).catch(function (e) {
       if (e && (e.status === 403 || e.status === 404) && /blobs|refs|trees|commits/.test(e.message + (e.url || ''))) noWriteDialog();
       else if (e) toast(T('publishFailed') + ': ' + (e.message || e), 'err');
     }).then(function () {
       b.querySelector('span').textContent = T('publish'); updatePublish(); if (/^#?\/?$/.test(location.hash)) rerender();
+      return done;
     });
   }
 

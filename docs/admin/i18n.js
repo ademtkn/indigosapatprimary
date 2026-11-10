@@ -298,3 +298,28 @@ window.ADMIN_I18N = {
       "publishing": "Saving…"
   },
 });
+
+// Simple account adding: type a name, username and password are filled in, saved at once
+(function (E) { Object.keys(E).forEach(function (l) { Object.assign(window.ADMIN_I18N.UI[l], E[l]); }); })({
+  ky: {
+    'ed.lead': 'Сайтты түзөтө турган адамдарды кошуңуз: атын жазсаңыз жетиштүү, колдонуучу аты жана сырсөз өзү түзүлөт. Өзгөртүүлөр дароо сакталып, 1–2 мүнөттө күчүнө кирет.',
+    'ed.addHelp': 'Атын жазыңыз — колдонуучу аты жана сырсөз өзү толтурулат (каалсаңыз өзгөртүңүз). «Кошуу» баскычын басыңыз: аккаунт дароо сакталат.',
+    'ed.addSave': 'Кошуу', 'ed.gen': 'Башка сырсөз', 'ed.makeOwner': 'Ага да сайттын ээсинин укуктарын берүү (редакторлорду башкарат)',
+    'ed.needName': 'Адамдын атын жазыңыз.', 'ed.readyTitle': 'Аккаунт даяр', 'ed.readyText': 'Бул маалыматты {0} менен бөлүшүңүз (1–2 мүнөттөн кийин иштейт):',
+    'ed.address': 'Дарек', 'ed.close': 'Жабуу', 'ed.saved': 'Сакталды. 1–2 мүнөттө күчүнө кирет.', copy: 'Көчүрүү', copied: 'Көчүрүлдү',
+  },
+  ru: {
+    'ed.lead': 'Добавьте людей, которые могут редактировать сайт: достаточно написать имя — имя пользователя и пароль создаются сами. Изменения сохраняются сразу и вступают в силу через 1–2 минуты.',
+    'ed.addHelp': 'Напишите имя — имя пользователя и пароль заполнятся сами (при желании измените). Нажмите «Добавить»: аккаунт сохранится сразу.',
+    'ed.addSave': 'Добавить', 'ed.gen': 'Другой пароль', 'ed.makeOwner': 'Дать права владельца сайта (управляет редакторами)',
+    'ed.needName': 'Напишите имя человека.', 'ed.readyTitle': 'Аккаунт готов', 'ed.readyText': 'Передайте эти данные: {0} (заработает через 1–2 минуты):',
+    'ed.address': 'Адрес', 'ed.close': 'Закрыть', 'ed.saved': 'Сохранено. Вступит в силу через 1–2 минуты.', copy: 'Копировать', copied: 'Скопировано',
+  },
+  en: {
+    'ed.lead': 'Add the people who may edit the website: just type a name — the username and password are made for you. Changes are saved at once and take effect in 1–2 minutes.',
+    'ed.addHelp': 'Type the name — the username and password are filled in (change them if you like). Press “Add”: the account is saved at once.',
+    'ed.addSave': 'Add', 'ed.gen': 'Another password', 'ed.makeOwner': 'Also give site owner rights (manages editors)',
+    'ed.needName': 'Type the person’s name.', 'ed.readyTitle': 'Account ready', 'ed.readyText': 'Send these details to {0} (they work in 1–2 minutes):',
+    'ed.address': 'Address', 'ed.close': 'Close', 'ed.saved': 'Saved. Takes effect in 1–2 minutes.', copy: 'Copy', copied: 'Copied',
+  },
+});

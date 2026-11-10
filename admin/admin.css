@@ -214,3 +214,13 @@ details.itm > summary::-webkit-details-marker { display: none; }
 .note-card p { font-size: .92rem; }
 @media (prefers-color-scheme: dark) { .note-card { background: #2B1E14; color: #FFD3A0; } }
 @media (max-width: 900px) { .row3 { grid-template-columns: 1fr; } }
+.add-card { border: 2px solid var(--sun); }
+.reset-box > summary { cursor: pointer; font-weight: 900; font-size: 1.1rem; color: var(--bad); list-style: none; }
+.reset-box > summary::-webkit-details-marker { display: none; }
+.reset-box > summary::before { content: "▸ "; }
+.reset-box[open] > summary::before { content: "▾ "; }
+.reset-box:not([open]) { padding-block: 1rem; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .12em; font-size: 1.05rem; }
+.ready-card { border: 2px solid var(--ok); }
+.ready-card h2 { color: var(--ok); }
+.ready-info { margin: 0; padding: .8rem 1rem; border-radius: 12px; background: var(--soft); font: 600 .95rem/1.7 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }

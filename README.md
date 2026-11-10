@@ -26,7 +26,7 @@ kaybolmaz; yüklenen fotoğraflar hariç).
 
 ### Editörler (kullanıcı adı + şifre)
 Indigo Prime Academy panelindeki gibi çalışır. Panele **kullanıcı adı ve şifre** ile girilir. Şifre **4–6 karakter,
-yalnız Latin harf ve rakam** (büyük/küçük harf ayrımı var). Hesaplardaki her değişiklik **"Kaydet ve yayınla"**dan
+yalnız Latin harf ve rakam** (büyük/küçük harf ayrımı var). Hesap değişiklikleri kaydedildikten
 1–2 dakika sonra geçerli olur.
 
 **İlk kurulum (bir kez):**
@@ -34,8 +34,15 @@ yalnız Latin harf ve rakam** (büyük/küçük harf ayrımı var). Hesaplardaki
 2. Soldaki menüden **Editörler**'e gidin; kendi **Site sahibi** hesabınızı (kullanıcı adı, ad soyad, şifre) oluşturun.
 3. **Kaydet ve yayınla**'ya basın. Bundan sonra siz de editörler de kullanıcı adı ve şifreyle girersiniz.
 
+**Editör eklemek (basit):** Editörler → "Editör ekle" kutusuna kişinin **adını** yazın. Kullanıcı adı (Kiril harfler
+Latin'e çevrilir: "Айгүл Асанова" → `aigul`) ve 6 karakterlik güçlü bir şifre kendiliğinden doldurulur; isterseniz
+değiştirin (↻ yeni şifre üretir). **Ekle**'ye basın: hesap hemen kaydedilir ve yayınlanır. Çıkan "Hesap hazır" kartındaki
+adres, kullanıcı adı ve şifreyi **Kopyala** ile kişiye iletin; 1–2 dakika sonra girebilir.
+
 **Editörler bölümünde:**
 - **Site sahibi** editör ekler, siler, rolünü ve şifresini değiştirir. **Editör** yalnız kendi şifresini değiştirebilir.
+- Hesaplardaki her değişiklik (ekleme, silme, şifre, rol, ad) **hemen kaydedilir**; ayrıca "Kaydet ve yayınla" gerekmez.
+  Panelde bekleyen başka metin değişiklikleri bu sırada yayınlanmaz.
 - **Ayrılan editör:** hesabını silmek girişini kapatır; ama panelde çalışırken arka plandaki GitHub token'ını ele
   geçirmiş olabilir. Güvenmiyorsanız: GitHub'da eski token'ı silip yenisini oluşturun → yeni token'la girin →
   **Editörler → Baştan başla** ile tüm hesapları sıfırlayın → kendi hesabınızı ve editörleri yeniden ekleyin.
