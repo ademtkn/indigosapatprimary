@@ -1,4 +1,23 @@
 {
-  "vault": null,
-  "editors": []
+  "vault": {
+    "iv": "Yk2kHrCeTqFqWu00",
+    "data": "Vm/9ay7iYl8PJBYY6eaUHgb3ab34sg1VFKT15Ju/cx/IPaJwUuistIVGp3KE90qC/lhLHwoaCGp8nwE0u7lZ2fZhQmGjbFG+ebXD5oXvZcKN0M63HVP46kTix8afZEPdIsfNRgWmnkNripbFTU+WW+i5SwBY9h8gkg=="
+  },
+  "editors": [
+    {
+      "username": "indigo",
+      "name": "Indigo Sapat",
+      "role": "owner",
+      "salt": "WCRtEtOaXes6uADBVlAyVw==",
+      "kdf": {
+        "alg": "argon2id",
+        "m": 65536,
+        "t": 6,
+        "p": 1
+      },
+      "iv": "At9qWmamPvmzcmae",
+      "key": "FifKujK99PCUVQpXvj8qt3lwV1/pmchV444o3Jr3nAYO2mSNEQPUN5BQQcWVGEgX",
+      "created": "2026-11-10"
+    }
+  ]
 }
