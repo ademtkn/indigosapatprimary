@@ -833,13 +833,51 @@
     d.showModal();
   }
   // The token can read the repository but not write to it (fine-grained token without "Contents: Read and write")
-  function noWriteDialog() {
+  // Can this token write to the repository? Creating an unused blob changes nothing visible.
+  function canWrite(token) {
+    return fetch(API + gh.rp('/git/blobs'), {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: 'write check', encoding: 'utf-8' }),
+    }).then(function (r) { return r.ok; }, function () { return false; });
+  }
+  // Which GitHub account the token belongs to (shown to help find the right token)
+  function tokenAccount(token) {
+    return fetch(API + '/user', { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' } })
+      .then(function (r) { return r.ok ? r.json() : {}; }).then(function (u) { return u.login || ''; }, function () { return ''; });
+  }
+  // retry: publishes again once a token that can write has been pasted
+  function noWriteDialog(retry) {
+    var owner = gh.repo.split('/')[0];
     var d = document.createElement('dialog'); d.className = 'dlg';
     d.innerHTML = '<form method="dialog"><h2>' + esc(T('noWriteTitle')) + '</h2><p>' + esc(T('noWriteText')) + '</p><ol class="steps-list">' +
       T('noWriteSteps').map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
       '<a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">github.com/settings/personal-access-tokens ↗</a>' +
-      '<p class="muted">' + esc(T('noWriteKeep')) + '</p><div class="row-btns"><button class="btn btn--primary" value="ok">OK</button></div></form>';
+      '<p class="nw-account muted"></p>' +
+      '<label>' + esc(T('noWritePaste')) + '<input name="tok" type="password" autocomplete="off" placeholder="github_pat_…"></label>' +
+      '<p class="alert" hidden></p>' +
+      '<div class="row-btns"><button class="btn btn--primary" type="button" data-nw="check">' + esc(T('noWriteCheck')) + '</button>' +
+      '<button class="btn btn--light" value="ok">' + esc(T('ed.close')) + '</button></div>' +
+      '<p class="muted">' + esc(T('noWriteKeep')) + '</p></form>';
     document.body.appendChild(d);
+    var acc = d.querySelector('.nw-account'), al = d.querySelector('.alert'), btn = d.querySelector('[data-nw]');
+    var showAccount = function (login) {
+      acc.textContent = login ? T('noWriteAccount').replace('{0}', login) + (login.toLowerCase() !== owner.toLowerCase() ? ' ' + T('noWriteOwner').replace(/\{0\}/g, owner) : '') : '';
+    };
+    tokenAccount(gh.token).then(showAccount);
+    btn.addEventListener('click', function () {
+      var tok = d.querySelector('[name=tok]').value.trim() || gh.token;
+      btn.disabled = true; al.hidden = true;
+      canWrite(tok).then(function (ok) {
+        if (!ok) {
+          btn.disabled = false; al.textContent = T('noWriteStill'); al.hidden = false;
+          return tokenAccount(tok).then(showAccount);
+        }
+        gh.token = tok;
+        // Keep the new token for this sign-in, and in the editors' vault when the site key is known
+        var seal = S.me.k && S.data.editors && S.data.editors.vault ? AUTH.sealToken(S.me.k, tok).then(function (v) { S.data.editors.vault = v; touched(); }) : Promise.resolve();
+        return seal.then(function () { keepSession(); d.close(); if (retry) retry(); });
+      });
+    });
     d.addEventListener('close', function () { d.remove(); });
     d.showModal();
   }
@@ -885,7 +923,7 @@
       done = true;
       deployPoll = Date.now(); setTimeout(refreshDeploy, 4000);
     }).catch(function (e) {
-      if (e && (e.status === 403 || e.status === 404) && /blobs|refs|trees|commits/.test(e.message + (e.url || ''))) noWriteDialog();
+      if (e && (e.status === 403 || e.status === 404) && /blobs|refs|trees|commits/.test(e.message + (e.url || ''))) noWriteDialog(function () { publish(msg, only); });
       else if (e) toast(T('publishFailed') + ': ' + (e.message || e), 'err');
     }).then(function () {
       b.querySelector('span').textContent = T('publish'); updatePublish(); if (/^#?\/?$/.test(location.hash)) rerender();
