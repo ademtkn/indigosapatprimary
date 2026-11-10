@@ -28,9 +28,9 @@
   }
 
   window.ADMIN_AUTH = {
-    // Passwords: 4–6 Latin letters and digits. Usernames: 2–30 of a-z 0-9 . _ -
+    // Passwords: 4–6 Latin letters and digits. Usernames: 3–20 of a-z 0-9 . _ -
     PASSWORD: /^[A-Za-z0-9]{4,6}$/,
-    USERNAME: /^[a-z0-9._-]{2,30}$/,
+    USERNAME: /^[a-z0-9._-]{3,20}$/,
     b64: b64, unb64: unb64,
     // New vault for a GitHub token → { key: raw vault key, vault }
     newVault: function (token) {

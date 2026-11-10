@@ -222,12 +222,19 @@
       start(auth);
     });
   }
+  // Accounts: straight from the repository (current right after "Save and publish"), else the published copy
+  function fetchEditors() {
+    var get = function (url) { return fetch(url, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+    return get('https://raw.githubusercontent.com/' + CFG.repo + '/' + (CFG.branch || 'main') + '/content/editors.json?v=' + Date.now())
+      .catch(function () { return get('editors.json?v=' + Date.now()); })
+      .catch(function () { return {}; });
+  }
   function passwordLogin(f) {
     var username = f.username.value.trim().toLowerCase(), password = f.password.value, remember = f.remember.checked;
     var wait = waitLeft();
     if (wait) { login(T('tooMany').replace('{s}', wait), { username: username }); return; }
     var b = f.querySelector('button'); b.disabled = true; b.textContent = T('checking');
-    fetch('editors.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : {}; }, function () { return {}; }).then(function (db) {
+    fetchEditors().then(function (db) {
       var rec = (db.editors || []).filter(function (x) { return x.username === username; })[0];
       if (!db.vault || !(db.editors || []).length) throw 'none';
       if (!rec) throw 'bad';
@@ -247,7 +254,26 @@
     });
   }
 
-  function start(auth) {
+  // The site's GitHub token stopped working: the site owner pastes a new one and every account keeps working
+  function newTokenScreen(auth, err) {
+    root.innerHTML = '<div class="login"><form class="login-card login-form" id="newtoken-form">' +
+      '<div class="login-top"><img src="../assets/img/logo.png" alt="Indigo Sapat" width="120">' + langSwitch() + '</div>' +
+      '<h1>' + esc(T('replaceToken')) + '</h1><p>' + esc(T('ed.newToken')) + '</p>' + (err ? '<p class="alert" role="alert">' + esc(err) + '</p>' : '') +
+      '<label>' + esc(T('token')) + '<input name="token" type="password" autocomplete="off" required placeholder="github_pat_…"></label>' +
+      '<button class="btn btn--primary btn--block" type="submit">' + esc(T('save')) + '</button>' +
+      '<button class="btn btn--light btn--block" type="button" id="nt-cancel">' + esc(T('cancel')) + '</button></form></div>';
+    $('#nt-cancel').addEventListener('click', function () { local.del('isp-admin-auth'); session.del('isp-admin-auth'); login(); });
+    $('#newtoken-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var tok = e.target.token.value.trim(); if (!tok) return;
+      fetch(API + '/repos/' + auth.repo, { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' } }).then(function (r) {
+        if (!r.ok) throw 0;
+        auth.token = tok; start(auth, true);
+      }).catch(function () { newTokenScreen(auth, T('tokenBad')); });
+    });
+  }
+
+  function start(auth, newToken) {
     gh.token = auth.token; gh.repo = auth.repo; gh.branch = auth.branch || 'main';
     S.me = { mode: auth.mode || 'token', user: auth.user || null, k: auth.k ? AUTH.unb64(auth.k) : null };
     root.innerHTML = '<div class="login"><p class="loading">' + esc(T('loading')) + '</p></div>';
@@ -263,9 +289,22 @@
       var draft = null; try { draft = JSON.parse(local.get(draftKey()) || 'null'); } catch (e) {}
       if (draft && draft.sha === S.sha && confirm(T('draftFound'))) Object.keys(draft.data).forEach(function (k) { S.data[k] = draft.data[k]; });
       else local.del(draftKey());
+      if (!newToken) return;
+      // New token for the site: seal it into the vault with the site key, so every account keeps working
+      return AUTH.sealToken(S.me.k, gh.token).then(function (v) {
+        S.data.editors.vault = v; keepSession(); location.hash = '#/editors';
+        setTimeout(function () { touched(); toast(T('ed.tokenUpdated'), 'ok'); }, 50);
+      });
+    }).then(function () {
       shell(); route();
     }).catch(function (e) {
       S.sha = null;
+      if (e.status === 401 && S.me.mode === 'password') {
+        if (S.me.user && ownerRole(S.me.user.role) && S.me.k) { newTokenScreen(auth); return; }
+        local.del('isp-admin-auth'); session.del('isp-admin-auth');
+        login(T('ed.expired'), { username: S.me.user && S.me.user.username });
+        return;
+      }
       login(T('loginFailed') + ' (' + (e.status || e.message) + ')', { owner: S.me.mode === 'token' });
     });
   }
@@ -294,7 +333,7 @@
       '<div class="layout"><aside class="side" id="side"><nav>' + nav.map(function (n) {
         return '<a href="' + n[0] + '" data-nav="' + n[0].split('/')[1] + '">' + n[1] + '<span>' + esc(n[2]) + '</span></a>' +
           (n[0] === '#/pages/home' ? '<div class="subnav">' + PAGE_KEYS.map(function (k) { return '<a href="#/pages/' + k + '" data-page="' + k + '">' + esc(pageName(k)) + '</a>'; }).join('') + '</div>' : '');
-      }).join('') + '</nav><p class="side-foot">' + esc(T('signedInAs')) + ': <b>' + esc(S.me.user ? (S.me.user.name || S.me.user.username) + ' (' + S.me.user.username + ')' : T('owner')) + '</b><br>' + esc(gh.repo) + ' · ' + esc(gh.branch) + '</p></aside>' +
+      }).join('') + '</nav><p class="side-foot">' + esc(T('signedInAs')) + ': <b>' + esc(S.me.user ? (S.me.user.name || S.me.user.username) + ' · ' + roleName(S.me.user.role) : T('ed.tokenUser')) + '</b><br>' + esc(gh.repo) + ' · ' + esc(gh.branch) + '</p></aside>' +
       '<main class="main" id="view"></main></div>';
     $('#publish').addEventListener('click', publishDialog);
     $('#signout').addEventListener('click', signOut);
@@ -544,111 +583,99 @@
   }
 
   // ---------- editors ----------
-  var isAdmin = function () { return S.me.mode === 'token' || !!(S.me.user && S.me.user.role === 'admin'); };
+  // Accounts work as in the Indigo Prime Academy panel: the site owner creates their own account first
+  // (signed in with the GitHub token), then adds editors; an editor can only change their own password.
+  var ownerRole = function (r) { return r === 'owner' || r === 'admin'; };
+  var isOwner = function () { return S.me.mode === 'token' || !!(S.me.user && ownerRole(S.me.user.role)); };
+  var roleName = function (r) { return T(ownerRole(r) ? 'ed.owner' : 'ed.editor'); };
   function editorsView() {
-    var db = S.data.editors, list = db.editors || [], me = S.me;
-    var origNames = (JSON.parse(S.orig.editors || '{}').editors || []).map(function (x) { return x.username; });
-    var roleSel = function (i, v) {
-      return '<select' + (i == null ? ' id="ed-role"' : pAttr('editors', ['editors', i, 'role'])) + '>' + ['editor', 'admin'].map(function (r) {
-        return '<option value="' + r + '"' + (v === r ? ' selected' : '') + '>' + esc(T(r === 'admin' ? 'roleAdmin' : 'roleEditor')) + '</option>'; }).join('') + '</select>';
+    var db = S.data.editors, list = db.editors = db.editors || [], me = S.me, owner = isOwner();
+    var field = function (label, hint, inner) { return '<div class="fld"><label class="fld-label">' + esc(label) + (hint ? ' <small>' + esc(hint) + '</small>' : '') + '</label>' + inner + '</div>'; };
+    var pwInput = function (id) { return '<input id="' + id + '" type="password" maxlength="6" autocomplete="new-password" placeholder="••••••">'; };
+    var roleSel = function (attrs, v) {
+      return '<select' + attrs + '>' + ['editor', 'owner'].map(function (r) { return '<option value="' + r + '"' + ((ownerRole(v) ? 'owner' : 'editor') === r ? ' selected' : '') + '>' + esc(roleName(r)) + '</option>'; }).join('') + '</select>';
     };
-    var card = function (e, i) {
-      var mine = me.user && me.user.username === e.username, admin = isAdmin();
-      return '<div class="itm"><div class="itm-bar">' + IC.users + '<span class="itm-prev"><b>' + esc(e.name || e.username) + '</b> · ' + esc(e.username) +
-        (mine ? ' (' + esc(T('you')) + ')' : '') + '</span>' + (origNames.indexOf(e.username) < 0 ? '<span class="pill">' + esc(T('pending')) + '</span>' : '') +
-        '<span class="tools"><button type="button" class="btn btn--light btn--sm" data-go="setpw" data-i="' + i + '">' + IC.key + '<span>' + esc(T('setPassword')) + '</span></button>' +
-        (admin ? '<button type="button" class="iconbtn sm danger" data-go="deleditor" data-i="' + i + '" title="' + esc(T('remove')) + '" aria-label="' + esc(T('remove')) + '">' + IC.trash + '</button>' : '') + '</span></div>' +
-        (admin ? '<div class="row2">' + single(T('displayName'), 'editors', ['editors', i, 'name']) +
-          '<div class="fld"><label class="fld-label">' + esc(T('role')) + '</label>' + roleSel(i, e.role) + '</div></div>' : '') + '</div>';
+    // First account, or start over: a new vault for the current GitHub token and the owner's own account
+    var createFirst = function (title, lead, reset) {
+      return '<section class="card' + (reset ? ' card--danger' : '') + '"><h2>' + esc(title) + '</h2><p class="muted">' + esc(lead) + '</p>' +
+        '<div class="row3">' + field(T('ed.username'), T('ed.userRule'), '<input id="cf-user" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="admin">') +
+        field(T('ed.name'), '', '<input id="cf-name">') + field(T('ed.password'), T('ed.pwRule'), pwInput('cf-pw')) + '</div>' +
+        '<button type="button" class="btn ' + (reset ? 'btn--danger' : 'btn--primary') + ' btn--sm add" data-go="createfirst"' + (reset ? ' data-reset="1"' : '') + '>' + esc(T(reset ? 'ed.resetBtn' : 'ed.createFirst')) + '</button></section>';
     };
-    var html = pageHead(T('editors'), T('editorsHelp'));
-    if (!isAdmin()) {
-      return html + '<div class="editor">' + list.map(function (e, i) { return me.user && e.username === me.user.username ? card(e, i) : ''; }).join('') + '</div>';
+    var parts = [];
+    if (!db.vault || !list.length) {
+      parts.push(createFirst(T('ed.firstTitle'), T('ed.firstLead'), false));
+    } else if (!me.k) {
+      // Signed in with a GitHub token: the accounts exist but cannot be changed without an owner's password
+      parts.push('<section class="card"><p>' + esc(T('ed.tokenOnly')) + '</p><ul class="ed-list">' + list.map(function (x) {
+        return '<li><b>' + esc(x.username) + '</b>' + (x.name ? ' (' + esc(x.name) + ')' : '') + ' · ' + esc(roleName(x.role)) + '</li>'; }).join('') + '</ul></section>');
+      parts.push(createFirst(T('ed.resetTitle'), T('ed.resetLead'), true));
+    } else {
+      parts.push(list.map(function (x, i) {
+        var self = me.user && me.user.username === x.username;
+        if (!owner && !self) return '';
+        return '<div class="itm"><div class="itm-bar"><b>' + (i + 1) + '</b><span class="itm-prev"><b>' + esc(x.username) + '</b>' + (self ? ' ' + esc(T('ed.me')) : '') + '</span>' +
+          (owner && !self ? '<span class="tools"><button type="button" class="btn btn--danger btn--sm" data-go="deleditor" data-i="' + i + '">' + esc(T('remove')) + '</button></span>' : '') + '</div>' +
+          '<div class="row3">' + field(T('ed.name'), '', input('editors', ['editors', i, 'name'], x.name || '')) +
+          field(T('ed.role'), '', roleSel(pAttr('editors', ['editors', i, 'role']) + (!owner || self ? ' disabled' : ''), x.role)) +
+          field(T('ed.newPw'), T('ed.pwRule'), '<div class="pwrow">' + pwInput('pw-' + i) + '<button type="button" class="btn btn--light btn--sm" data-go="setpw" data-i="' + i + '">' + esc(T('ed.setPw')) + '</button></div>') +
+          '</div></div>';
+      }).join(''));
+      if (owner) {
+        parts.push('<section class="card"><h2>' + esc(T('ed.addTitle')) + '</h2><div class="row2">' +
+          field(T('ed.username'), T('ed.userRule'), '<input id="ed-user" autocomplete="off" autocapitalize="none" spellcheck="false">') + field(T('ed.name'), '', '<input id="ed-name">') +
+          field(T('ed.password'), T('ed.pwRule'), pwInput('ed-pw')) + field(T('ed.role'), '', roleSel(' id="ed-role"', 'editor')) + '</div>' +
+          '<button type="button" class="btn btn--primary btn--sm add" data-go="addeditor">' + IC.plus + '<span>' + esc(T('ed.add')) + '</span></button></section>');
+        parts.push(createFirst(T('ed.resetTitle'), T('ed.resetLead'), true));
+      }
     }
-    if (!db.vault) {
-      return html + '<div class="editor"><section class="card"><h2>' + esc(T('setupVault')) + '</h2><p class="muted">' + esc(T('setupHelp')) + '</p>' +
-        '<button type="button" class="btn btn--primary btn--sm" data-go="setupvault">' + IC.key + '<span>' + esc(T('setupVault')) + '</span></button></section></div>';
-    }
-    if (!me.k) {
-      return html + '<div class="editor"><section class="card"><p>' + esc(T('noKey')) + '</p>' +
-        (me.mode === 'token' ? '<button type="button" class="btn btn--light btn--sm" data-go="resetvault">' + esc(T('resetVault')) + '</button>' : '') + '</section></div>';
-    }
-    return html + '<div class="editor"><p class="note-box">' + esc(T('securityNote')) + '</p>' + list.map(card).join('') +
-      '<section class="card"><h2>' + esc(T('addEditor')) + '</h2>' +
-      '<div class="row2"><div class="fld"><label class="fld-label" for="ed-name">' + esc(T('displayName')) + '</label><input id="ed-name"></div>' +
-      '<div class="fld"><label class="fld-label" for="ed-user">' + esc(T('username')) + ' <small>' + esc(T('usernameRule')) + '</small></label><input id="ed-user" autocapitalize="none" spellcheck="false" autocomplete="off"></div></div>' +
-      '<div class="row2"><div class="fld"><label class="fld-label" for="ed-pw">' + esc(T('password')) + ' <small>' + esc(T('pwRule')) + '</small></label><input id="ed-pw" type="password" maxlength="6" autocomplete="new-password"></div>' +
-      '<div class="fld"><label class="fld-label" for="ed-pw2">' + esc(T('password2')) + '</label><input id="ed-pw2" type="password" maxlength="6" autocomplete="new-password"></div></div>' +
-      '<div class="fld"><label class="fld-label" for="ed-role">' + esc(T('role')) + '</label>' + roleSel(null, 'editor') + '</div>' +
-      '<p class="alert" id="ed-err" hidden></p>' +
-      '<button type="button" class="btn btn--primary btn--sm add" data-go="addeditor">' + IC.plus + '<span>' + esc(T('addEditor')) + '</span></button></section>' +
-      '<section class="card"><h2>' + esc(T('replaceToken')) + '</h2><p class="muted">' + esc(T('replaceHelp')) + '</p>' +
-      '<input id="ed-token" type="password" autocomplete="off" placeholder="github_pat_…">' +
-      '<button type="button" class="btn btn--light btn--sm add" data-go="replacetoken">' + esc(T('save')) + '</button></section>' +
-      (me.mode === 'token' ? '<section class="card"><button type="button" class="btn btn--light btn--sm add" data-go="resetvault">' + esc(T('resetVault')) + '</button></section>' : '') +
-      '</div>';
+    return pageHead(T('editors'), owner ? T('ed.lead') : T('ed.leadEditor')) + '<div class="editor">' + parts.join('') +
+      '<section class="card note-card"><h2>' + esc(T('ed.secTitle')) + '</h2><p>' + esc(T('ed.sec')) + '</p></section></div>';
   }
-  // Keep the vault key / token of this sign-in up to date in the stored session
+  // Keep the vault key, token and account of this sign-in in the stored session
   function keepSession() {
     var store = local.get('isp-admin-auth') ? local : session, a = {};
     try { a = JSON.parse(store.get('isp-admin-auth') || '{}'); } catch (e) {}
-    a.token = gh.token; if (S.me.k) a.k = AUTH.b64(S.me.k);
+    a.token = gh.token; a.k = S.me.k ? AUTH.b64(S.me.k) : null; a.user = S.me.user;
     store.set('isp-admin-auth', JSON.stringify(a));
-  }
-  // Asks for a new password twice; resolves with it, or null when cancelled
-  function askPassword(title) {
-    return new Promise(function (done) {
-      var d = document.createElement('dialog'); d.className = 'dlg';
-      d.innerHTML = '<form method="dialog"><h2>' + esc(title) + '</h2>' +
-        '<label>' + esc(T('newPassword')) + ' <small class="muted">' + esc(T('pwRule')) + '</small><input name="a" type="password" maxlength="6" autocomplete="new-password"></label>' +
-        '<label>' + esc(T('password2')) + '<input name="b" type="password" maxlength="6" autocomplete="new-password"></label><p class="alert" hidden></p>' +
-        '<div class="row-btns"><button class="btn btn--primary" value="ok">' + esc(T('save')) + '</button><button class="btn btn--light" value="cancel" formnovalidate>' + esc(T('cancel')) + '</button></div></form>';
-      document.body.appendChild(d);
-      var f = d.querySelector('form'), al = d.querySelector('.alert');
-      f.addEventListener('submit', function (e) {
-        if (e.submitter && e.submitter.value === 'cancel') return;
-        var err = !AUTH.PASSWORD.test(f.a.value) ? T('pwRule') : f.a.value !== f.b.value ? T('pwMismatch') : '';
-        if (err) { e.preventDefault(); al.textContent = err; al.hidden = false; }
-      });
-      d.addEventListener('close', function () { var v = d.returnValue === 'ok' ? f.a.value : null; d.remove(); done(v); });
-      d.showModal();
-    });
   }
   function editorAction(go, btn) {
     var db = S.data.editors, list = db.editors = db.editors || [];
-    var busy = function (on) { btn.disabled = on; if (on) btn.dataset.label = btn.innerHTML, btn.textContent = T('checking'); else if (btn.dataset.label) btn.innerHTML = btn.dataset.label; };
-    var fail = function (e) { busy(false); toast(String((e && e.message) || e), 'err'); };
-    if (go === 'setupvault' || go === 'resetvault') {
-      if (go === 'resetvault' && !confirm(T('resetConfirm'))) return;
-      AUTH.newVault(gh.token).then(function (r) {
-        db.vault = r.vault; if (go === 'resetvault') db.editors = [];
-        S.me.k = r.key; keepSession(); touched(); rerender();
-      }).catch(fail);
+    var val = function (id) { var el = $('#' + id); return el ? el.value : ''; };
+    var badUser = function (u) { return !AUTH.USERNAME.test(u) ? T('ed.badUser') : list.some(function (x) { return x.username === u; }) ? T('ed.exists') : ''; };
+    var badPw = function (pw) { return AUTH.PASSWORD.test(pw) ? '' : T('ed.badPw'); };
+    var work = function (job) {
+      var label = btn.innerHTML; btn.disabled = true; btn.textContent = T('ed.working');
+      job().then(function () { toast(T('ed.saveHint'), 'ok'); touched(); rerender(); },
+        function (e) { btn.disabled = false; btn.innerHTML = label; toast(String((e && e.message) || e), 'err'); });
+    };
+    if (go === 'createfirst') {
+      var reset = !!btn.dataset.reset, u = val('cf-user').trim().toLowerCase(), n = val('cf-name').trim(), pw = val('cf-pw');
+      var err = !AUTH.USERNAME.test(u) ? T('ed.badUser') : badPw(pw);
+      if (err) { toast(err, 'err'); return; }
+      if (reset && !confirm(T('ed.resetConfirm'))) return;
+      work(function () {
+        return AUTH.newVault(gh.token).then(function (v) {
+          return AUTH.lock(v.key, pw, { username: u, name: n, role: 'owner' }).then(function (rec) {
+            db.vault = v.vault; db.editors = [rec];
+            S.me.k = v.key; S.me.user = { username: u, name: n, role: 'owner' }; keepSession();
+            var foot = $('.side-foot b'); if (foot) foot.textContent = (n || u) + ' · ' + roleName('owner');
+          });
+        });
+      });
     } else if (go === 'addeditor') {
-      var name = $('#ed-name').value.trim(), user = $('#ed-user').value.trim().toLowerCase(), pw = $('#ed-pw').value, role = $('#ed-role').value;
-      var err = !AUTH.USERNAME.test(user) ? T('usernameRule') : list.some(function (x) { return x.username === user; }) ? T('userExists')
-        : !AUTH.PASSWORD.test(pw) ? T('pwRule') : pw !== $('#ed-pw2').value ? T('pwMismatch') : '';
-      if (err) { var el = $('#ed-err'); el.textContent = err; el.hidden = false; return; }
-      busy(true);
-      AUTH.lock(S.me.k, pw, { username: user, name: name, role: role }).then(function (rec) { list.push(rec); touched(); rerender(); }).catch(fail);
+      var nu = val('ed-user').trim().toLowerCase(), npw = val('ed-pw');
+      var e2 = badUser(nu) || badPw(npw);
+      if (e2) { toast(e2, 'err'); return; }
+      work(function () { return AUTH.lock(S.me.k, npw, { username: nu, name: val('ed-name').trim(), role: val('ed-role') }).then(function (rec) { list.push(rec); }); });
     } else if (go === 'setpw') {
-      var i = +btn.dataset.i, e = list[i];
-      askPassword(T('setPassword') + ': ' + e.username).then(function (pw) {
-        if (!pw) return;
-        busy(true);
-        return AUTH.lock(S.me.k, pw, e).then(function (rec) { list[list.indexOf(e)] = rec; touched(); rerender(); });
-      }).catch(fail);
+      var i = +btn.dataset.i, x = list[i], p2 = val('pw-' + i), e3 = badPw(p2);
+      if (e3) { toast(e3, 'err'); return; }
+      work(function () { return AUTH.lock(S.me.k, p2, x).then(function (rec) { list[list.indexOf(x)] = rec; }); });
     } else if (go === 'deleditor') {
-      var j = +btn.dataset.i, admins = list.filter(function (x) { return x.role === 'admin'; }).length;
-      if (!confirm(list[j].role === 'admin' && admins === 1 ? T('lastAdmin') : T('remove') + ': ' + (list[j].name || list[j].username) + '?')) return;
+      var j = +btn.dataset.i;
+      if (!confirm(T('ed.delConfirm').replace('{0}', list[j].username))) return;
       list.splice(j, 1); touched(); rerender();
-    } else if (go === 'replacetoken') {
-      var tok = $('#ed-token').value.trim(); if (!tok) return;
-      busy(true);
-      fetch(API + '/repos/' + gh.repo, { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json' } }).then(function (r) {
-        if (!r.ok || !r.json) throw new Error(T('tokenBad'));
-        return AUTH.sealToken(S.me.k, tok);
-      }).then(function (vault) { db.vault = vault; gh.token = tok; keepSession(); touched(); toast(T('tokenOk'), 'ok'); rerender(); }).catch(fail);
     }
   }
 
@@ -691,7 +718,7 @@
     if (a.dataset.clear) { var x = JSON.parse(a.dataset.clear); setAt(S.data[x.f], x.p, ''); touched(); rerender(); return; }
     var go = a.dataset.go;
     if (go) {
-      if (/^(setupvault|resetvault|addeditor|setpw|deleditor|replacetoken)$/.test(go)) editorAction(go, a);
+      if (/^(createfirst|addeditor|setpw|deleditor)$/.test(go)) editorAction(go, a);
       else if (go === 'publish') publishDialog();
       else if (go === 'discard') { if (confirm(T('discardConfirm'))) { Object.keys(FILES).forEach(function (k) { S.data[k] = JSON.parse(S.orig[k]); }); S.pending = {}; touched(); rerender(); } }
       else if (go === 'collapse') { var ds = $$('#view details.grp'), open = ds.some(function (d) { return d.open; }); ds.forEach(function (d) { d.open = !open; }); a.textContent = open ? T('expandAll') : T('collapseAll'); }

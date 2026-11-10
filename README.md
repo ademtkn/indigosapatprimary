@@ -25,13 +25,22 @@ GitHub Actions gerekmez. Yayınlanmamış değişiklikler tarayıcıda taslak ol
 kaybolmaz; yüklenen fotoğraflar hariç).
 
 ### Editörler (kullanıcı adı + şifre)
-Editörler panele **kullanıcı adı ve şifre** ile girer. Şifre **4–6 karakter, yalnız Latin harf ve rakam**
-(büyük/küçük harf ayrımı var). Editörleri **Editörler** bölümünden site sahibi veya bir *Yönetici* ekler, siler,
-rolünü ve şifresini değiştirir; her editör kendi şifresini değiştirebilir. Değişiklik "Yayınla"dan 1–2 dakika sonra geçerli olur.
+Indigo Prime Academy panelindeki gibi çalışır. Panele **kullanıcı adı ve şifre** ile girilir. Şifre **4–6 karakter,
+yalnız Latin harf ve rakam** (büyük/küçük harf ayrımı var). Hesaplardaki her değişiklik **"Kaydet ve yayınla"**dan
+1–2 dakika sonra geçerli olur.
 
-- **Yönetici:** içerik + editör yönetimi. **Editör:** yalnız içerik.
-- İlk kurulum: site sahibi aşağıdaki GitHub token ile girer → **Editörler → Editör girişini aç** → editörleri ekler → **Yayınla**.
-- Token süresi dolarsa: bir yönetici **Editörler → GitHub token'ı değiştir** (editörlerin şifreleri değişmez).
+**İlk kurulum (bir kez):**
+1. Panelde giriş ekranının altındaki **"Site sahibi: GitHub erişim anahtarıyla giriş"** bölümünü açıp GitHub token'ınızla girin.
+2. Soldaki menüden **Editörler**'e gidin; kendi **Site sahibi** hesabınızı (kullanıcı adı, ad soyad, şifre) oluşturun.
+3. **Kaydet ve yayınla**'ya basın. Bundan sonra siz de editörler de kullanıcı adı ve şifreyle girersiniz.
+
+**Editörler bölümünde:**
+- **Site sahibi** editör ekler, siler, rolünü ve şifresini değiştirir. **Editör** yalnız kendi şifresini değiştirebilir.
+- **Ayrılan editör:** hesabını silmek girişini kapatır; ama panelde çalışırken arka plandaki GitHub token'ını ele
+  geçirmiş olabilir. Güvenmiyorsanız: GitHub'da eski token'ı silip yenisini oluşturun → yeni token'la girin →
+  **Editörler → Baştan başla** ile tüm hesapları sıfırlayın → kendi hesabınızı ve editörleri yeniden ekleyin.
+- **GitHub token'ının süresi dolarsa:** site sahibi kullanıcı adı ve şifresiyle girdiğinde panel yeni token'ı ister;
+  yapıştırıp kaydedince tüm hesaplar çalışmaya devam eder (ardından **Kaydet ve yayınla**). Editörlere "site sahibine başvurun" denir.
 - 5 hatalı denemeden sonra giriş 30 saniyeden başlayarak artan sürelerle bekletilir.
 
 **Güvenlik notu:** Sunucu olmadığı için GitHub token, `admin/editors.json` içinde her editörün şifresiyle şifreli

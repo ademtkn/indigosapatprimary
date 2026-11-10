@@ -203,3 +203,14 @@ details.itm > summary::-webkit-details-marker { display: none; }
   .grp-body { padding: 0 .9rem 1rem; }
   .itm { padding: .7rem; }
 }
+
+/* editor accounts */
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; }
+.pwrow { display: flex; gap: .4rem; }
+.btn--danger { background: var(--bad); color: #fff; }
+.card--danger { border: 1.5px solid #F3C2C9; }
+.ed-list { margin: .5rem 0 0; padding-left: 1.2rem; display: grid; gap: .3rem; }
+.note-card { background: #FFF3E3; color: #6B3B00; box-shadow: none; }
+.note-card p { font-size: .92rem; }
+@media (prefers-color-scheme: dark) { .note-card { background: #2B1E14; color: #FFD3A0; } }
+@media (max-width: 900px) { .row3 { grid-template-columns: 1fr; } }
